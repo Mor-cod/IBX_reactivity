@@ -30,3 +30,13 @@ results/models/
 
 # Dataset not distributed in the public repository (see README.md#dataset)
 data/DFT_data.csv
+
+# Row-level outputs derived from the private dataset (individual compounds/
+# train-test rows); not distributed pre-publication (see README.md#dataset).
+# Aggregate outputs (metrics, feature importance, VIF, correlation matrix,
+# descriptive statistics, figures) are unaffected and remain tracked.
+results/tables/box_plots_data.csv
+results/tables/cluster_assignments.csv
+results/tables/pca_transformed_data.csv
+results/tables/predictions_default_*.csv
+results/tables/predictions_tuned_*.csv

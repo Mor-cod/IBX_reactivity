@@ -10,7 +10,7 @@ This work was conducted in the Chemistry discipline at the University of Tasmani
 
 ## Dataset
 
-**The full DFT descriptor dataset used to reproduce the reported model performance is not currently distributed in this public repository. The dataset will be made publicly available upon publication. The analysis code is provided to document the computational and machine-learning workflow.**
+**The full DFT descriptor dataset and row-level prediction outputs are not currently distributed in this public repository and will be made available upon publication. The repository currently provides the analysis code and aggregate results required to document the computational workflow.**
 
 For reference, the dataset (when present at `data/DFT_data.csv`) consists of **284 IBX derivatives** with eight DFT-derived descriptors and the target TS barrier — one row per compound:
 
@@ -23,7 +23,7 @@ For reference, the dataset (when present at `data/DFT_data.csv`) consists of **2
 
 ### Provenance note
 
-`archive_original/` retains, for provenance, the original working script (`Mori2_original.py`), a notebook version of the analysis (`Mori2_notebook_original.ipynb`), the manuscript source, and a small, unrelated wide-layout table (`DFT_data_original.csv`, 18×17, only 2 of the 8 descriptors, a different compound set) that the analysis code never reads. The 284-compound dataset itself, and any file found to be an equivalent copy of it, has been removed from this repository and its Git history.
+`archive_original/` retains, for provenance, the original working script (`Mori2_original.py`), a notebook version of the analysis (`Mori2_notebook_original.ipynb`), the manuscript source, and a small, unrelated wide-layout table (`DFT_data_original.csv`, 18×17, only 2 of the 8 descriptors, a different compound set) that the analysis code never reads. The 284-compound dataset itself, any file found to be an equivalent copy of it, and generated outputs that expose individual-compound values (per-molecule predictions, PCA coordinates, and cluster assignments — see **Reproducibility** below) have been removed from this repository and its Git history. Aggregate results computed from the dataset (model-performance metrics, feature importance, correlation coefficients, descriptive statistics, and publication-style figures) remain, as they do not expose individual observations.
 
 ## Machine-learning methods
 
@@ -53,7 +53,7 @@ For each model: an 80/20 train-test split (`random_state=42`), evaluation with d
 │
 ├── results/
 │   ├── figures/                # Generated plots (EDA, residuals, SHAP, PDP, ...)
-│   ├── tables/                 # Generated CSV tables, metrics, logs
+│   ├── tables/                 # Aggregate metrics/importance/stats (row-level outputs gitignored)
 │   └── models/                 # Persisted best model (.joblib, gitignored)
 │
 └── archive_original/            # Untouched originals kept for provenance (dataset files excluded)
@@ -90,19 +90,19 @@ pip install -r requirements.txt
 
 ## Usage
 
-Running the full analysis requires the dataset to be placed locally at `data/DFT_data.csv` (see **Dataset** above — this file is not included in the public repository). Once it is in place:
+**This public repository does not, by itself, let you reproduce the numerical results** — the dataset is required and is not included (see **Dataset** above). Once you have obtained `data/DFT_data.csv` (available upon publication) and placed it locally:
 
 ```bash
 python src/ibx_ml_analysis.py
 ```
 
-This loads `data/DFT_data.csv`, validates it, runs the exploratory analysis (correlation heatmap, pair plot, box plots, VIF, PCA, K-Means clustering), trains and evaluates all five models with default hyperparameters, tunes four of them (5-fold CV), generates residual/QQ/learning-curve diagnostics, feature importance, Partial Dependence Plots and a SHAP analysis of the best tuned model, and writes every figure and table into `results/`. Without the dataset present, the script will raise a `FileNotFoundError` at startup.
+This loads `data/DFT_data.csv`, validates it, runs the exploratory analysis (correlation heatmap, pair plot, box plots, VIF, PCA, K-Means clustering), trains and evaluates all five models with default hyperparameters, tunes four of them (5-fold CV), generates residual/QQ/learning-curve diagnostics, feature importance, Partial Dependence Plots and a SHAP analysis of the best tuned model, and writes every figure and table into `results/`. Without the dataset present, the script will raise a `FileNotFoundError` at startup. Note that some generated per-compound outputs (individual predictions, PCA coordinates, cluster assignments) are excluded from version control by `.gitignore` even when regenerated locally, consistent with this repository's pre-publication data policy.
 
 ## Reproducibility
 
 - Random seed `42` is used for the train/test split, all stochastic model estimators (Random Forest, Gradient Boosting, Neural Network), K-Means clustering, and `RandomizedSearchCV`.
 - Package versions used for this reproducibility run are pinned in `requirements.txt`.
-- The metrics and figures below were obtained using the full 284-compound, 8-descriptor DFT dataset, **which is not currently included in this public repository** (see **Dataset** above). Running `src/ibx_ml_analysis.py` without that file present will not reproduce them.
+- The metrics below were obtained using the full 284-compound, 8-descriptor DFT dataset. **Neither the dataset nor the row-level prediction/PCA/cluster outputs used to compute these metrics are included in this public repository** (see **Dataset** above); only the aggregate metrics themselves are reported. Running `src/ibx_ml_analysis.py` without the dataset present will not reproduce them.
 
 ### Reproduced metrics vs. manuscript reference (default hyperparameters, DFT descriptors)
 
