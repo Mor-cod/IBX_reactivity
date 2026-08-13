@@ -10,19 +10,20 @@ This work was conducted in the Chemistry discipline at the University of Tasmani
 
 ## Dataset
 
-`data/DFT_data.csv` contains **284 IBX derivatives** with eight DFT-derived descriptors and the target TS barrier — one row per compound, already analysis-ready. This matches the manuscript's stated computational set ("These computations encompassed 284 IBX derivatives") and its reported descriptive statistics (e.g. TS barrier mean 18.45 kcal·mol⁻¹, range ~9–23; `D16 value` mean 7.30 / std 7.77, matching the manuscript's reported Θ distribution exactly). Dataset validation found **no missing values, no duplicate rows, no unnamed columns, and no numeric-conversion issues** (see `results/tables/dataset_validation_report.csv`).
+**The full DFT descriptor dataset used to reproduce the reported model performance is not currently distributed in this public repository. The dataset will be made publicly available upon publication. The analysis code is provided to document the computational and machine-learning workflow.**
 
-- **Observations**: individual IBX derivatives (no compound-name column is present in this file — compounds are identified only by row/descriptor values).
+For reference, the dataset (when present at `data/DFT_data.csv`) consists of **284 IBX derivatives** with eight DFT-derived descriptors and the target TS barrier — one row per compound:
+
 - **Target variable**: `TS_Barrier` — the DFT-computed transition-state barrier (kcal·mol⁻¹) for the hypervalent twisting step in methanol oxidation.
 - **Descriptors**:
   - `HOMO-O (Hartree)`, `LUMO-O (Hartree)` — frontier molecular orbital energies
   - `Dipole Moment X (Debye)`, `Dipole Moment Total (Debye)` — molecular dipole moment and its x-component
-  - `D16 value` — the twisting dihedral angle Θ (see note above on how this identification was made)
+  - `D16 value` — the twisting dihedral angle Θ
   - `I-O Bond`, `I=O`, `I-OH bond` — iodine–oxygen bond length metrics
 
 ### Provenance note
 
-During cleanup, the only file initially present in the project folder (`archive_original/DFT_data_original.csv`) was a small, wide-layout table (72 compounds, single descriptor `D16 value` + `TS_Barrier`, with compound-name columns) that turned out to be a *different*, unrelated file — the analysis script never reads it, and it is preserved in `archive_original/` for provenance only, not used by the pipeline. The actual training dataset (`new3_sample-orginal.csv`, 284 rows × 8 descriptors) and a Jupyter notebook version of the analysis (`Mori2.ipynb`) were supplied afterward and are archived unmodified as `archive_original/new3_sample-orginal_original.csv` and `archive_original/Mori2_notebook_original.ipynb`. The notebook's final, most complete code cell was verified to be **byte-identical** to `archive_original/Mori2_original.py`, confirming `src/ibx_ml_analysis.py` was refactored from the correct, final version of the methodology.
+`archive_original/` retains, for provenance, the original working script (`Mori2_original.py`), a notebook version of the analysis (`Mori2_notebook_original.ipynb`), the manuscript source, and a small, unrelated wide-layout table (`DFT_data_original.csv`, 18×17, only 2 of the 8 descriptors, a different compound set) that the analysis code never reads. The 284-compound dataset itself, and any file found to be an equivalent copy of it, has been removed from this repository and its Git history.
 
 ## Machine-learning methods
 
@@ -44,7 +45,8 @@ For each model: an 80/20 train-test split (`random_state=42`), evaluation with d
 ├── .gitignore
 │
 ├── data/
-│   └── DFT_data.csv            # 284 IBX derivatives x 8 DFT descriptors + TS_Barrier
+│   ├── README.md                # Explains where to place DFT_data.csv locally
+│   └── DFT_data.csv             # NOT included — place your own copy here to run the analysis (gitignored)
 │
 ├── src/
 │   └── ibx_ml_analysis.py      # Cleaned analysis script (entry point)
@@ -54,11 +56,10 @@ For each model: an 80/20 train-test split (`random_state=42`), evaluation with d
 │   ├── tables/                 # Generated CSV tables, metrics, logs
 │   └── models/                 # Persisted best model (.joblib, gitignored)
 │
-└── archive_original/            # Untouched originals kept for provenance
-    ├── DFT_data_original.csv                # Superseded; unrelated to the ML pipeline (see Provenance note)
+└── archive_original/            # Untouched originals kept for provenance (dataset files excluded)
+    ├── DFT_data_original.csv                # Unrelated to the ML pipeline (see Provenance note)
     ├── Mori2_original.py                    # Original working script (was Mori2.txt)
     ├── Mori2_notebook_original.ipynb        # Notebook version of the analysis
-    ├── new3_sample-orginal_original.csv     # Original name of data/DFT_data.csv
     └── manuscript_source_text4.txt
 ```
 
@@ -89,19 +90,19 @@ pip install -r requirements.txt
 
 ## Usage
 
-Run the full analysis from the repository root:
+Running the full analysis requires the dataset to be placed locally at `data/DFT_data.csv` (see **Dataset** above — this file is not included in the public repository). Once it is in place:
 
 ```bash
 python src/ibx_ml_analysis.py
 ```
 
-This loads `data/DFT_data.csv`, validates it, runs the exploratory analysis (correlation heatmap, pair plot, box plots, VIF, PCA, K-Means clustering), trains and evaluates all five models with default hyperparameters, tunes four of them (5-fold CV), generates residual/QQ/learning-curve diagnostics, feature importance, Partial Dependence Plots and a SHAP analysis of the best tuned model, and writes every figure and table into `results/`. No manual intervention is required.
+This loads `data/DFT_data.csv`, validates it, runs the exploratory analysis (correlation heatmap, pair plot, box plots, VIF, PCA, K-Means clustering), trains and evaluates all five models with default hyperparameters, tunes four of them (5-fold CV), generates residual/QQ/learning-curve diagnostics, feature importance, Partial Dependence Plots and a SHAP analysis of the best tuned model, and writes every figure and table into `results/`. Without the dataset present, the script will raise a `FileNotFoundError` at startup.
 
 ## Reproducibility
 
 - Random seed `42` is used for the train/test split, all stochastic model estimators (Random Forest, Gradient Boosting, Neural Network), K-Means clustering, and `RandomizedSearchCV`.
-- All outputs are written to `results/figures/` and `results/tables/`; the best tuned model is persisted to `results/models/`.
 - Package versions used for this reproducibility run are pinned in `requirements.txt`.
+- The metrics and figures below were obtained using the full 284-compound, 8-descriptor DFT dataset, **which is not currently included in this public repository** (see **Dataset** above). Running `src/ibx_ml_analysis.py` without that file present will not reproduce them.
 
 ### Reproduced metrics vs. manuscript reference (default hyperparameters, DFT descriptors)
 
@@ -113,7 +114,7 @@ This loads `data/DFT_data.csv`, validates it, runs the exploratory analysis (cor
 | Support Vector Regression | 0.4397 | 0.3324 | 0.9740 | 0.4397 | 0.9740 |
 | Neural Network | 0.4606 | 0.3220 | 0.9748 | 0.4606 | 0.9748 |
 
-**The default-hyperparameter results reproduce the manuscript's Table 1 to four decimal places**, using the unmodified original code, random seed, and 80/20 split against the recovered dataset (`archive_original/new3_sample-orginal_original.csv`).
+**The default-hyperparameter results reproduce the manuscript's Table 1 to four decimal places**, using the unmodified original code, random seed, and 80/20 split against the full 284-compound dataset described above (not included in this public repository).
 
 After hyperparameter tuning (`GridSearchCV`/`RandomizedSearchCV`, 5-fold CV, seed 42):
 

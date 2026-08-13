@@ -27,3 +27,6 @@ Thumbs.db
 # Trained model artifacts (regenerable via src/ibx_ml_analysis.py)
 *.joblib
 results/models/
+
+# Dataset not distributed in the public repository (see README.md#dataset)
+data/DFT_data.csv
