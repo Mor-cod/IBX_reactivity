@@ -1,0 +1,31 @@
+,0
+memory,
+steps,"[('regressor', GradientBoostingRegressor(learning_rate=0.05, min_samples_leaf=2,
+                          min_samples_split=10, n_estimators=200,
+                          random_state=42))]"
+transform_input,
+verbose,False
+regressor,"GradientBoostingRegressor(learning_rate=0.05, min_samples_leaf=2,
+                          min_samples_split=10, n_estimators=200,
+                          random_state=42)"
+regressor__alpha,0.9
+regressor__ccp_alpha,0.0
+regressor__criterion,deprecated
+regressor__init,
+regressor__learning_rate,0.05
+regressor__loss,squared_error
+regressor__max_depth,3
+regressor__max_features,
+regressor__max_leaf_nodes,
+regressor__min_impurity_decrease,0.0
+regressor__min_samples_leaf,2
+regressor__min_samples_split,10
+regressor__min_weight_fraction_leaf,0.0
+regressor__n_estimators,200
+regressor__n_iter_no_change,
+regressor__random_state,42
+regressor__subsample,1.0
+regressor__tol,0.0001
+regressor__validation_fraction,0.1
+regressor__verbose,0
+regressor__warm_start,False

@@ -1,0 +1,2 @@
+n_rows,missing_values_per_column,n_duplicate_rows,n_unnamed_columns,n_numeric_conversion_failures
+284,"{'TS_Barrier': 0, 'HOMO-O (Hartree)': 0, 'LUMO-O (Hartree)': 0, 'Dipole Moment X (Debye)': 0, 'Dipole Moment Total (Debye)': 0, 'D16 value': 0, 'I-O Bond': 0, 'I=O': 0, 'I-OH bond': 0}",0,0,0

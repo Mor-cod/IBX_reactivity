@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+.env
+
+# Editors
+.vscode/
+.idea/
+.claude/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Trained model artifacts (regenerable via src/ibx_ml_analysis.py)
+*.joblib
+results/models/

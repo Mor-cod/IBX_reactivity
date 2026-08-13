@@ -1,0 +1,603 @@
+\documentclass[final,5p,times,twocolumn]{elsarticle}
+
+% Add necessary packages
+\usepackage{algorithm,algorithmic,amsbsy,amsmath,amssymb,epsfig,bbm,bm,mathrsfs,multirow,amsthm,listings,xcolor}
+\usepackage{float} % Include float package
+\usepackage{lipsum}
+\usepackage[numbers]{natbib}
+\usepackage{booktabs}
+\usepackage{geometry}
+\geometry{a4paper, left=0.5in, right=0.5in, top=1in, bottom=1in} % Adjust the margins here
+\usepackage{times}
+\usepackage{adjustbox}
+\usepackage{array}
+\usepackage{etoolbox}
+\usepackage{caption}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{graphicx}
+
+\newcommand{\kms}{km\,s$^{-1}$}
+\newcommand{\msun}{$M_\odot}
+
+% Define a lighter sky-blue color
+\definecolor{elsevierblue}{RGB}{135, 206, 235}
+
+% Set the color of hyperlinks in the text body
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    citecolor=elsevierblue, % Set references to light sky blue
+    urlcolor=elsevierblue,
+    anchorcolor=elsevierblue
+}
+
+% Define a new command for labeling figures in Elsevier blue
+\newcommand{\figref}[1]{\textcolor{elsevierblue}{Fig.~\ref{#1}}}
+\newcommand{\tabref}[1]{\textcolor{elsevierblue}{Table~\ref{#1}}}
+
+% Redefine thebibliography environment for smaller font size
+\patchcmd{\thebibliography}{\section*{\refname}}{\section*{\refname}\fontsize{6}{6}\selectfont}{}{}
+
+% Set caption format to use "Fig." and the number in bold
+\captionsetup[figure]{
+    labelfont={bf},
+    labelformat=simple,
+    labelsep=period,
+    name={Fig.}
+}
+
+\journal{Computers in Biology and Medicine}
+
+
+\begin{document}
+
+
+
+\begin{frontmatter}
+
+
+\title{Machine Learning and Computational Chemistry for Understanding Reactivity and Substituent Effects in Hypervalent Iodine Compounds}
+
+\author[1]{Morteza Jamshidi}
+\author[1]{}
+\author[3]{ and \thanks{Corresponding author: }}
+
+\affiliation[1]{School of Physical Sciences\, University of Tasmania,
+            addressline={}, 
+            city={Hobart},
+            postcode={7001}, 
+            state={TAS},
+            country={Australia}}
+            
+        
+
+
+         
+
+
+
+\begin{abstract}
+In this study, we integrate machine learning and computational chemistry to elucidate reactivity and substituent effects in hypervalent iodine compounds. Detailed DFT descriptors, combined with structural fingerprints and Mordred-derived features, enabled the development of a robust categorization scheme for IBX derivatives based on the number and positions of their substituents. Our models reveal that, consistent with previous literature, steric factors dominate reactivity: Bulky groups in the ortho position relative to iodine significantly increase the dihedral angle ($\Theta$), which in turn lowers the transition state barrier and enhances reactivity. Furthermore, additional categories capture multi-substituted compounds, highlighting distinct profiles—such as those exhibiting a buttressing effect, where the addition of a second bulky group further amplifies molecular twisting. SHAP analyses corroborate these insights by identifying the $\Theta$ and dipole moments as key determinants of reactivity. Collectively, our findings provide mechanistic insights and a predictive framework for the rational design of more efficient and selective hypervalent iodine reagents. 
+
+
+\end{abstract}
+
+\begin{keyword}
+
+
+
+
+
+%% PACS codes here, in the form: \PACS code \sep code
+
+%% MSC codes here, in the form: \MSC code \sep code
+%% or \MSC[2008] code \sep code (2000 is the default)
+
+\end{keyword}
+
+
+\end{frontmatter}
+
+%\tableofcontents
+
+%% \linenumbers
+
+%% main text
+
+\section{Introduction}
+\label{introduction}
+Hypervalent iodine compounds have established themselves as essential tools in organic chemistry, offering efficient and environmentally friendly alternatives to heavy metal reagents for diverse synthetic transformations. These compounds, particularly iodine(III) and iodine(V) derivatives, have found widespread application as selective oxidizing agents and versatile reagents for functionalizing complex organic molecules. Their unique chemical properties, characterized by reactivity and selectivity,  positioned them as indispensable in a variety of oxidative and bond-forming reactions~\cite{zhdankin2021hypervalent}. As the field has evolved, hypervalent iodine chemistry  extensively explored, with numerous reviews and comprehensive studies highlighting the broad utility and potential of these compounds in organic synthesis. Hypervalent iodine(III) and iodine(V) species attached to a benzene ring are widely used in organic synthesis. Among these compounds, those incorporated into five-membered rings—such as IBX 1 and IBA 2 (Fig.~\ref{fig:fig1}A))—are the most well-known~\cite{zhdankin2009hypervalent,ladziata2006hypervalent}.
+
+The reactivity of hypervalent iodine compounds is profoundly influenced by the ligands coordinated to the iodine center and the substituents on the aryl ring. For instance, iodine(III) reagents are used in various ligand exchange reactions and catalytic oxidation reactions~\cite{yoshimura2016advances}. Strong trans ligands confer lability, whereas combinations of strong and weak, or weak and weak, ligands enhance stability, thereby affecting reactivity~\cite{zhdankin2009hypervalent}. This ligand-dependent behavior is exemplified by diaryliodonium salts 3 ( ~\ref{fig:fig1}A), in which electron-deficient aryl groups are preferentially transferred during reactions, highlighting the significant role of electronic properties in guiding transformations~\cite{olofsson2016arylation}.
+
+Regarding iodine(V) reagents, they are employed in various controlled oxidation reactions, including catalytic or stoichiometric processes, such as the oxidation of alcohols~\cite{de1996hypervalent}, amines, sulfides~\cite{nicolaou2004iodoxybenzoic}, aromatics~\cite{pouysegu2010hypervalent,zhang2023metal}, and heteroaromatics~\cite{howard2013controlled, farshadfar2022discovery}. The main barrier to their widespread use is the insolubility of IBX in most organic solvents. Moreover, most of these hypervalent iodine compounds are not sufficiently strong for some reactions. Dess–Martin periodinane (DMP) (4) (~\ref{fig:fig1}A)is widely used for the mild and selective oxidation of alcohols to carbonyl compounds and is soluble in most organic solvents~\cite{ireland1993improved}. In fact, the performance of DMP is enhanced by its solubility and the assistance of Brønsted acids~\cite{satam20102}.
+
+ Su and Goddard illustrate a mechanism using DFT calculations, showing that the twisting energy of hypervalent iodine(V) is the rate-determining step (RDS) in the oxidation of methanol. They noted that ligand exchange occurs rapidly, with a low energy barrier. They further found that this twisting is essential for the subsequent step, which involves either the elimination of alcohol or the cleavage of the I–OR bond. Moreover, they observed that alkyl groups ortho to the iodoxy group enhance twisting; however, as these substituents increase in size, steric effects shift the rate-determining step to ligand exchange, with o‑tBuIBX exhibiting the poorest ligand exchange~\cite{su2005enhancing} (see Fig~\ref{fig:fig1}B and C).
+
+Although Schaefer explained that DFT computations with larger basis sets reveal that reductive elimination involving C–H bond cleavage is the rate-determining step (RDS)\cite{jiang2017twist}, for larger alcohols the RDS is the twisting step\cite{parida2023lambda3} or even ligand exchange. This is because larger alcohols require more energy to overcome the twisting barrier while needing less energy for the elimination step compared to methanol~\cite{jiang2017twist}. To complete this investigation, we also provide a mechanism demonstrating that hypervalent twisting is necessary for both ligand exchange and elimination steps in the oxidation of alcohols and amines using IBX reagent~\cite{chipman2019dft}.
+
+Water plays a critical role in the oxidation of alcohols by IBX. The process involves a two-step mechanism in which water assists in proton transfer, thereby facilitating the conversion of the alcohol ligand. The presence of water, coupled with hypervalent twisting, leads to the formation of a twisted intermediate that eventually undergoes disproportionation. This synergistic interaction between water and the IBX reagent accelerates the transformation, enhancing the overall reactivity of the system~\cite{su2005enhancing}.
+
+Lewis acids, such as BF3, and boron-containing compounds significantly influence IBX-mediated alcohol oxidation. These acids facilitate the ligand exchange process, thereby reducing the energy barrier for the oxidation step. They stabilize the intermediate transition state, leading to more efficient and rapid oxidation. Furthermore, the presence of these acids alters the reactivity profile by favoring certain substrates and promoting the formation of desired products with higher yield and selectivity~\cite{ochiai2006trans,jiang2017twist}. Brønsted acids, such as AcOH and TFA, can also increase the solubility and reactivity of iodine hypervalent compounds in various reactions~\cite{tojo2006oxidation}.For example, IBX with catalytic TsOH·H2O can perform chemoselective one-pot cleavage and oxidation of silyl ethers in good yields, in the presence of various protecting groups~\cite{kamo2024chemoselective}.
+
+The reactivity of hypervalent iodine compounds is significantly influenced by replacing hydroxy ligands with acidic groups, such as OAc in DMP~\cite{de1996hypervalent}, OTs (5), and OMs (6)\cite{yusubov20132}(~\ref{fig:fig1}A). This substitution not only improves solubility in common organic solvents but is also essential for reactions that require a lower energy barrier at the RDS~\cite{farshadfar2022discovery}.
+
+
+Another type of IBX is sudo-cyclic IBX derivatives, such as IBS (7)~\cite{zhdankin2005derivatives}, amide (8)~\cite{zhdankin2003ibx}, and ester (9)~\cite{hitomi2014synthesis}iodine hypervalent reagents, which are modified versions of IBX where the iodine center is attached to different functional groups. These modifications can influence their reactivity and solubility, offering enhanced chemoselectivity in oxidation reactions. Ester and amide IBX derivatives typically exhibit improved solubility compared to standard IBX, making them useful in various synthetic applications~\cite{zhdankin2004preparation}. However, most of these compounds are expensive, and the synthesis of some of them is complex.
+
+Substituent effects, whether steric, electronic, or both, can significantly influence reactivity, as demonstrated in Goddard's study~\cite{parida2023lambda3,su2005enhancing}. Studies showed that ortho-substituents on iodine(V) compounds, such as IBX, play a pivotal role in facilitating key mechanistic steps. Alkyl groups promote the twisting step, enabling faster reaction rates compared to unsubstituted IBX~\cite{moorthy2011twist}. For instance, Me-IBX (10), a methyl-substituted derivative of IBX, exhibits enhanced reactivity, thereby expanding its utility in various oxidative transformations~\cite{moorthy2011twist}. However, in iodine(V) hypervalent compounds, functional groups attached at different positions on the aromatic ring often exhibit both steric and electronic effects~\cite{parida2023lambda3,su2005enhancing,moorthy2008modified}, which may either be synergistic or antagonistic. In some cases, the resulting properties cannot be accurately predicted without synthesizing the reagents or performing comprehensive computational studies~\cite{su2005enhancing}.\par
+
+However, despite extensive empirical evidence and various mechanistic studies, the rate-determining step (RDS) in alcohol oxidation is not unique—it can vary depending on the alcohol or the type of IBX used. Importantly, twisting is crucial for both ligand exchange and elimination. Computational chemistry has proven invaluable in elucidating these mechanisms, as demonstrated by studies showing how twisting processes and ortho-substituents influence reaction rates in transformations such as alcohol oxidation~\cite{su2005enhancing, moorthy2011twist}. This synergy of experimental and theoretical approaches provides a deeper understanding of the nuanced reactivity of these versatile reagents.
+
+While several comprehensive review articles published in recent years covering DFT and experimental studies~\cite{parida2023lambda3, zhdankin2011organoiodine, shetgaonkar2023iodine,zhdankin2013hypervalent} some factors influencing reactivity remain unknown due to the limited data of different IBX substituents, both theoretically and experimentally. In this work, we selected various IBX derivatives and employed DFT calculations to compute the transition state barrier for the twisting step in alcohol oxidation, aiming to identify new reactivity features using machine learning methods.\par
+ 
+
+\begin{figure}
+\centering
+\includegraphics[width=0.9\linewidth]{1.pdf}
+\caption{Theoretical Mechanistic Study of Methanol Oxidation Using IBX by Goddard~\cite{su2005enhancing}}
+\label{fig:fig1}
+\end{figure}
+
+
+
+Machine learning (ML) has become a valuable tool for predicting the behavior of reagents in chemical reactions by analyzing the structural effects of substituents. It allows researchers to uncover patterns and trends from extensive datasets of experimental and computational results, enabling the rational design of reagents with reduced reliance on exhaustive synthesis~\cite{artrith2021best}. Among ML techniques, neural networks (NN)  stand out for their ability to handle complex and nonlinear relationships, making them particularly suited for modeling the intricate interplay of substituents’ effects on reactivity~\cite{wei2016neural}. However, the effectiveness of ML, and NN in particular, is constrained by the availability and quality of datasets, as limited or biased data can undermine the accuracy of predictions. Furthermore, the "black box" nature of NN complicates the extraction of mechanistic insights, necessitating careful interpretation and validation~\cite{benitez1997artificial}. Relying on both ML-based predictions and traditional experimental approaches is ideal, as it combines the efficiency of data-driven tools with the reliability of established methods to advance the design of hypervalent iodine reagents~\cite{shwartz2017opening}
+.\par
+
+\section{Materials and methods}
+\subsection{Computational Details}
+Density functional theory (DFT) calculations were performed to evaluate the transition state (TS) barriers for the twisting mechanism in methanol oxidation, following the methodology established by Goddard et al~\cite{su2005enhancing}. (see Figure ~\ref{fig:fig1}B). All calculations were conducted using the Gaussian 16 software package~\cite{tomberg2013gaussian}. These computations encompassed 284 IBX derivatives. Geometry optimizations and frequency analyses were carried out at the M06-2X level of theory~\cite{hohenstein2008assessment}, employing the SMD solvation model with dimethyl sulfoxide (DMSO) as the solvent. Transition states for methanol oxidation reactions were identified using the Berny algorithm, and the corresponding calculations were confirmed by frequency analyses, ensuring the presence of a single imaginary frequency corresponding to the reaction coordinate.
+
+For IBX derivatives, the Stuttgart/Dresden (SDD) effective core potential (ECP) was applied to iodine, while carbon, hydrogen, oxygen, chlorine, phosphorus, fluorine, sulfur, and nitrogen atoms were described using the 6-31G(d) basis set. Single-point energy calculations were subsequently performed on the optimized structures using the M06-2X functional with the def2-TZVP basis set for all atoms, including iodine, within the same SMD solvation model (DMSO). The distribution of TS barriers for the twisting mechanism is depicted in Figure~\ref{fig:fig2}B).
+
+\subsection{Machine Learning Models}
+
+A comprehensive predictive framework for estimating the transition state (TS) barrier was developed through the application of several machine learning (ML) models. The model selection was guided by each algorithm’s capacity to capture nonlinear relationships, manage high-dimensional descriptor spaces, and yield robust generalization. The algorithms considered in this study include Linear Regression (LR), Random Forest (RF), Gradient Boosting (GB), Support Vector Regression (SVR), and Neural Networks (NN). A baseline LR model was first implemented to serve as a point of reference due to its simplicity, interpretability, and computational efficiency. However, given the complexity of chemical systems and the inherent nonlinearity of molecular interactions, more sophisticated models were subsequently explored.These models were trained and evaluated using rigorous statistical techniques to determine their predictive performance, as illustrated in Figure~\ref{fig:fig3}.
+
+\subsubsection{Linear Regression (LR)}
+Linear regression models the relationship between a dependent variable and one or more independent variables through a linear equation. In this study, LR was used to relate the TS barrier to molecular descriptors derived from density functional theory (DFT) optimizations, Mordred descriptors, and Morgan fingerprints. The model follows the standard ordinary least squares (OLS) formulation:
+\begin{equation}
+    y = \beta_0 + \sum_{i=1}^{n} \beta_i x_i + \epsilon,
+\end{equation}
+where \(y\) represents the TS barrier, \(x_i\) are the molecular descriptors, \(\beta_i\) are the regression coefficients, \(\beta_0\) is the intercept, and \(\epsilon\) is the error term. Model training was performed by minimizing the mean squared error (MSE) without the inclusion of regularization techniques, thus ensuring a pure linear approach~\cite{hope2020linear, reback2020pandas,das2004mean}. As an example of this use in chemistry, LR models  applied in predicting adsorption energies of molecules on catalyst surfaces using appropriate metal descriptors, enabling efficient catalyst screening and material design~\cite{chowdhury2018prediction}.
+
+\subsubsection{Random Forest (RF)}
+Random Forest is an ensemble learning method that constructs multiple decision trees and aggregates their predictions to reduce overfitting and enhance accuracy. In this study, RF was employed to capture both linear and nonlinear interactions among descriptors. Each tree in the forest is built on a bootstrap sample of the training data, and a random subset of features is used for splitting at each node. The final prediction is the average of individual tree predictions:
+\begin{equation}
+    \hat{y} = \frac{1}{T} \sum_{t=1}^{T} h_t(X),
+\end{equation}
+where \(T\) is the number of trees and \(h_t(X)\) is the prediction from the \(t\)-th tree ~\cite{breiman2001random,breiman2001random,pedregosa2011scikit}. Shi et al. employed random forest models to predict chemopreventive agents, screening 23,000 compounds and selecting 18 validated leads, highlighting the model's effectiveness in chemoprevention.~\cite{sprague2014design}.
+
+
+\subsubsection\{Gradient Boosting (GB)} 
+Gradient Boosting is an iterative ensemble technique that sequentially trains weak learners (typically decision trees) to correct the errors of preceding models. Each iteration minimizes the residual error by adding a new model to the ensemble: \textbackslash{}begin\{equation\} \textbackslash{}hat\{y\}\_i = F\_M(X\_i) = F\_\{M-1\}(X\_i) + \textbackslash{}gamma\_M h\_M(X\_i), \textbackslash{}end\{equation\} where \textbackslash{}( \textbackslash{}gamma\_M \textbackslash{}) is the learning rate and \textbackslash{}( h\_M(X\_i) \textbackslash{}) is the \textbackslash{}(M\textbackslash{})-th base learner. This approach facilitates the modeling of complex relationships by iteratively refining predictions ~\cite{friedman2001greedy, friedman2001greedy }.Sheridan demonstrated that XGBoost is an effective and efficient QSAR modeling method, providing accurate predictions with minimal computation. It handles large datasets, supports frequent updates, and benefits from prediction rescaling. Despite sensitivity to noise and lacking a domain applicability metric, it remains a powerful tool in pharmaceutical applications~\cite{sheridan2016extreme}.  
+
+\subsubsection{Support Vector Regression (SVR)}
+Support Vector Regression extends support vector machines to regression tasks by identifying a hyperplane that best fits the data while allowing a specified margin of tolerance. The SVR model is formulated by minimizing:
+\begin{equation}
+    \min_{w,b} \frac{1}{2} \|w\|^2,
+\end{equation}
+subject to:
+\begin{equation}
+    |y_i - (w^T x_i + b)| \leq \epsilon,
+\end{equation}
+where \(w\) is the weight vector, \(b\) is the bias term, and \(\epsilon\) defines the width of the \(\epsilon\)-insensitive tube. To capture nonlinear dependencies, an RBF kernel was employed:
+\begin{equation}
+    K(x_i, x_j) = \exp\left(-\gamma \|x_i - x_j\|^2\right),
+\end{equation}
+with \(\gamma\) as the kernel hyperparameter ~\cite{drucker1996support, liu2011feature, willmott2005advantages }. Hong et al. integrated chemical knowledge into ML for reaction performance prediction, employing support vector regression (SVR), quantum computations, and transfer learning. Their review highlights AI’s potential to enhance synthetic chemistry while addressing challenges in catalyst design and reaction optimization~\cite{zhang2023bridging}.
+
+\subsubsection{Neural Networks (NN)}
+Artificial neural networks, particularly feedforward networks, are computational models inspired by the structure and function of biological neural systems. They consist of layers of interconnected nodes (neurons), each learning progressively abstract representations of the input data. Neural network models, especially those based on deep learning, offer high flexibility and superior performance for modeling complex, high-dimensional data, although they typically require significant computational resources and large training datasets. Moreover, NN models tend to be less interpretable compared to more conventional methods such as LR or decision trees~\cite{abdi1999neural,bebis1994feed}. Deep neural networks have been successfully applied in computational chemistry. For instance, Goh \textit{et al.} demonstrated that deep neural networks (DNNs) can learn features directly from raw data, thereby enabling accurate predictions of physicochemical properties. These models have found broad applications in areas including drug design, structural biology, quantum chemistry, and materials science~\cite{goh2017deep}.
+
+A \textit{multi-layer perceptron} (MLP) regressor was implemented, consisting of an input layer, two hidden layers, and an output layer. Each layer transforms the input via weighted summations and nonlinear activations. The forward propagation in the network is given by:
+\begin{equation}
+    a^{(l)} = \sigma(W^{(l)} a^{(l-1)} + b^{(l)}),
+\end{equation}
+where:
+\begin{itemize}
+    \item \( W^{(l)} \) is the weight matrix for layer \( l \),
+    \item \( b^{(l)} \) is the bias vector,
+    \item \( \sigma \) is an activation function (e.g., ReLU, tanh),
+    \item \( a^{(l)} \) represents the activation at layer \( l \).
+\end{itemize}
+The hidden layers, configured with 100 and 50 neurons, employ the ReLU activation function:
+\begin{equation}
+    \sigma(z) = \max(0, z),
+\end{equation}
+and the output layer utilizes a linear activation to yield continuous predictions for the TS barrier.
+
+Training was performed using the Adam optimizer, which adaptively adjusts the learning rate during training. The model was optimized by minimizing the mean squared error (MSE) loss:
+\begin{equation}
+    \text{MSE} = \frac{1}{m} \sum_{i=1}^{m} (y_i - \hat{y}_i)^2,
+\end{equation}
+with weight updates computed via backpropagation:
+\begin{equation}
+    \frac{\partial L}{\partial W^{(l)}} = \delta^{(l)} \, a^{(l-1)T},
+\end{equation}
+where \(\delta^{(l)}\) is the backpropagated error term. Training was conducted over a maximum of 1000 iterations using mini-batches of 32 samples, with early stopping implemented to avoid overfitting.
+
+\paragraph{Evaluation Protocol}  
+All models were trained on 80\% of the dataset and evaluated on the remaining 20\%. A 5-fold cross-validation procedure was applied to mitigate selection bias. The performance of each model was quantified using metrics such as root mean square error (RMSE) and the coefficient of determination (\(R^2\)). Residual analysis and parity plots were generated to assess prediction accuracy and error distribution, ensuring the reliability of the predictive framework.
+
+This systematic approach to model selection and evaluation allowed for the identification of the most suitable ML algorithm for TS barrier prediction, forming a robust foundation for further refinement and application in computational chemistry.
+
+
+\begin{figure*}[hbt!]
+\centering
+\includegraphics[width=0.9\linewidth]{3.pdf}
+\caption{Workflow for investigating correlations between molecular descriptors and the twisting TS barrier. Mordred descriptors, binary fingerprints, and DFT-based descriptors were analyzed using machine learning (ML) models, including linear regression (LR), random forest (RF), gradient boosting (GB), support vector regression (SVR), and neural networks (NN). Descriptor selection involved removing strong correlations and filtering weak correlations based on target association. Hyperparameter tuning and SHAP analysis were applied to optimize predictive performance.}
+\label{fig:fig3}
+\end{figure*}
+
+
+
+\subsubsection{\subsubsection{Hyperparameter Tuning and Model Evaluation}
+
+Hyperparameter tuning was undertaken for Random Forest (RF), Gradient Boosting (GB), Support Vector Regression (SVR), and Neural Networks (NN) to enhance generalization and predictive performance. A systematic exploration of the hyperparameter spaces was performed using GridSearchCV for ensemble-based models and RandomizedSearchCV for SVR and NN models. Model performance was quantified using metrics such as root mean square error (RMSE) and the coefficient of determination (\(R^2\)), while residual analyses were conducted to assess prediction quality.
+
+For ensemble models (RF and GB), key hyperparameters—including the number of trees (\(n\_estimators\)), maximum tree depth (\(max\_depth\)), and minimum samples per split (\(min\_samples\_split\))—were optimized to balance model complexity with variance reduction. Similarly, GB hyperparameters, such as the learning rate (\(learning\_rate\)) and the number of boosting stages, were fine-tuned to improve convergence and mitigate overfitting.
+
+In the case of SVR, tuning was focused on the regularization parameter (\(C\)), kernel type (linear or radial basis function), and the epsilon (\(\varepsilon\)) threshold to achieve an optimal bias–variance trade-off. For NN models, parameters such as the hidden layer configuration, activation functions (e.g., ReLU, tanh), solver methods (e.g., Adam, LBFGS), and learning rate schedules were adjusted to enhance training stability and convergence. Early stopping was implemented and a maximum iteration limit was enforced to address the sensitivity of neural networks to initialization and training dynamics.
+
+A 5-fold cross-validation procedure was employed to obtain statistically robust performance estimates. In addition, learning curves were generated to evaluate generalization across varying training set sizes, while residual and quantile-quantile (QQ) plots were analyzed to verify the normality and homoscedasticity of prediction errors.
+
+The optimal model was selected based on achieving the highest \(R^2\) and the lowest RMSE. Subsequent interpretability analyses, including SHapley Additive exPlanations (SHAP) and Partial Dependence Plots (PDPs), were performed on the best-performing model to elucidate feature importance and the influence of key descriptors. Finally, the selected model was persisted using joblib, ensuring reproducibility and facilitating predictions on unseen molecular structures.
+
+\subsection{Data set}
+\subsubsection{DFT descriptors}
+
+The dataset~\ref{s} was generated from a DFT optimization of IBX structures and includes 25 descriptors categorized into energy and geometry. Eight key descriptors were chosen from this dataset for training various ML models: HOMO, LUMO, Dipole Moment X ($\vec{\mu}_x$), Dipole Moment Total ($\vec{\mu}$), Dihedral ($\Theta$), and the bond lengths of I–O, I=O, and I–OH.$\vec{\mu}_x$ represents the component of the molecular dipole moment along the x-axis, indicating charge separation in this direction~\cite{housecroft2008inorganic}. It provides insight into the electronic distribution and polarity of the IBX structures. The target variable, TS Barrier, represents the transition state barrier for twisting in methanol oxidation. Notably, the $\Theta$, which is a dihedral angle as illustrated in Figure~\ref{fig:fig2}A, was first reported by Goddard~\cite{su2005enhancing} to correlate with lower TS barriers in IBX derivatives having higher $\Theta$, and Moorthy confirmed this in a study that combined DFT and experimental catalysis~\cite{moorthy2011twist}. Additionally, the iodine–oxygen bond parameters are depicted in Figure~\ref{fig:fig2}A.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.9\linewidth]{2-Distribution.pdf}
+\caption{The dihedral angle ($\Theta$) and iodine–oxygen bond parameters are shown in (A). The distribution of transition state (TS) barriers (target) for twisting is depicted in (B). Key molecular descriptors (C–J) include I=O (C), $\Theta$ (D), I-O (E), Dipole Moment Total ($\vec{\mu}$) (F), HOMO (G), Moment X ($\vec{\mu}_x$) (H), LUMO (I), and I-OH (J).}
+\label{fig:fig2}
+\end{figure}
+
+\subsubsection{Mordred  descriptors}
+
+Mordred enables the conversion of molecular structures into a comprehensive set of numerical descriptors that encapsulate various physicochemical and structural properties. The resulting dataset comprises numerous descriptors relevant to the analysis of the transition state barrier (TS Barrier) and other related targets, as described in the Fingerprint Descriptors section~\cite{moriwaki2018mordred}. These descriptors serve as essential features for subsequent quantitative analyses and machine learning applications.
+
+\subsubsection{Fingerprint descriptors}
+
+Morgan fingerprints, also known as circular fingerprints, encode the presence of molecular substructures within a fixed-length binary vector, capturing essential structural information relevant to various chemical properties~\cite{pattanaik2020molecular}. In this study, fingerprints with 8192 bits and a radius of 2 were generated to ensure a comprehensive representation of molecular features. The resulting dataset consists of binary vectors corresponding to each molecule in the original dataset, along with associated target properties, including TS Barrier, HOMO, LUMO, various dipole moments, and geometric descriptors ($\Theta$, I–O, I=O, and I–OH bond lengths). These binary fingerprints serve as fundamental features for subsequent correlation analyses and machine learning model development in a non-numeric way, providing useful information about the DFT descriptors~\cite{aman2025prediction}.
+
+
+
+\section{Results and discussion}
+\subsection {Distribution of DFT descriptors}
+
+A heatmap is generated using Pearson correlation to visualize the correlation coefficients between all numeric features that show a reasonable correlation with the TS barrier. This figure~\ref{fig:fig4} highlights strongly correlated features, where values close to ±1 indicate a strong linear relationship. Highly correlated predictors can introduce issues with multicollinearity, where redundant information between features may distort model interpretations and inflate variance in regression coefficients. Identifying and addressing these correlations—such as through feature selection or dimensionality reduction—can improve model stability. Additionally, a histogram overlaid with a kernel density estimate (KDE) is plotted to illustrate the distribution of the target variable (TS Barrier) and the DFT descriptors. This figure~\ref{fig:fig2}C-J aids in understanding the overall spread and central tendency of the selected descriptors in the dataset.\par
+
+The distribution of the features in the dataset was thoroughly examined using both box plots and descriptive statistics. The analysis revealed varying degrees of variability among the features, with some displaying stable distributions and others showing significant fluctuations. The TS Barrier, for instance, exhibited a relatively wide distribution, with values ranging from ~9 to ~23 kcal·mol$^{-1}$. The mean value of 18.45 kcal·mol$^{-1}$, coupled with a standard deviation of $\Theta$=3.37   (IBX), suggests that while the TS barrier is generally concentrated around this central value, there is considerable variability. This spread in TS barrier values highlights the complexity of the transition state energies and their sensitivity to underlying molecular descriptors.\par
+
+In contrast, features such as HOMO  and I-O Bond displayed much narrower distributions. The HOMO  values, with a mean of -0.30 and a standard deviation of just 0.02, indicated that this feature is tightly clustered around the central value, with minimal variation. The I-O Bond feature also showed a narrow range, with values between 2.11 and 2.21, reflecting a stable, consistent characteristic across the dataset. The low variability in these features suggests that they are reliable and may provide stable predictors in modeling tasks, as their values do not fluctuate significantly (figure~\ref{fig:fig2}G and E).\par
+
+Features such as Dipole Moment X ($\vec{\mu}_x$) and $\Theta$ value $\Theta$ , however, exhibited substantial variability. The $\vec{\mu}_x$ had a mean of 1.70, but the range of values extended from -3.33 to 7.59, showing that the dipole moment along the X-axis is quite variable. Similarly, the $\Theta$ displayed a large spread, with a mean of 7.30 and a standard deviation of 7.77, indicating significant variation in the dataset. Despite the variability observed in these features, their importance in the models suggests they provide crucial information. The variability in these features may contribute valuable complexity to the model, offering a deeper understanding of the underlying chemical processes, and should be considered in the context of their overall predictive power(figure~\ref{fig:fig2}H and D).\par
+
+Overall, the dataset contains a mix of stable and variable features, which is common in scientific data. While features with narrow distributions like HOMO  and I-O Bond can provide reliable, consistent information, features with wider distributions such as $\vec{\mu}_x$ and $\Theta$ offer a more complex, nuanced perspective on the data. Understanding these distribution patterns is crucial for selecting appropriate modeling techniques, preprocessing strategies, and ensuring that the models can handle both stable and variable features effectively.\par
+
+\begin{figure}
+\centering
+\includegraphics[width=0.83\linewidth]{4-Heatmap.pdf}
+\caption{Correlation heatmap of all numeric features, illustrating pairwise Pearson correlations with annotations.).}
+\label{fig:fig4}
+\end{figure}
+
+
+
+figure S~\ref{fig:S1}1 consists of a grid of scatterplots (with diagonal histograms) showing pairwise relationships among all numeric features. It provides visual insight into potential linear or non-linear relationships, clusters, and outliers across different variables. For more details, you can see the Pair plot for all numeric features in supplementary S~\ref{fig:S1}1.
+
+Box plots in figure ~\ref{fig:fig5}A summarize the distribution of each numeric feature by displaying the median, the interquartile range (IQR, which covers the 25th to 75th percentiles), and any potential outliers beyond the typical whiskers. For example, if you consider the "HOMO " feature from your data, the box plot would show where most of the values lie (typically around a central value, such as –0.316, with the lower quartile near –0.33 and the upper quartile near –0.30, based on the range of values provided) and highlight any unusually high or low values as outliers. Similarly, for features like "LUMO-O "—with values clustering around –0.034—and "Dipole Moment Total "—with values ranging roughly between 8 and 16—the box plots visually reveal the spread, symmetry, and any skewness in the data distributions. Features such as "$\Theta$", "I-O Bond", "I=O", and "I-OH bond" are handled in the same manner, each box plot conveying a concise five-number summary that makes it easy to compare the central tendency and variability among different descriptors.
+
+
+\subsection {PCA Scatter Plot}
+Based on the PCA results provided in Figure~\ref{fig:fig5}B for the DFT descriptors, the first principal component (PC1) accounts for approximately 92.48\% of the total variance in the dataset. This indicates that a single linear combination of the features—denoted as the "$\Theta$"—captures nearly all of the variability across the compounds. In practical terms, the majority of differences among compounds can be summarized along this dominant axis (PC1), making it an effective dimension for representing the overall structure of the data.
+
+In contrast, the second principal component (PC2), corresponding to $\vec{\mu}_x$ (, explains only about 5.28\% of the variance. Although PC2 contributes additional detail, its impact is relatively minor compared to PC1. When a scatter plot of PC1 versus PC2 is examined, it is evident that most of the separation among data points occurs along the PC1 axis, with PC2 providing only slight differentiation. For instance, if compounds with higher TS Barrier values exhibit distinct combinations of electronic and geometric properties, these differences are primarily captured by PC1, with only subtle variations reflected in PC2. This result demonstrates that the dimensionality reduction is highly effective, as nearly all meaningful variability is condensed into a single principal component.~\ref{fig:fig5}B.
+
+
+In the PCA-transformed scatter plot, the x-axis is defined by PC1 and the y-axis by PC2. Two clusters were identified using K-Means clustering, and the data points were subsequently colored according to their cluster assignments. It is observed that points with PC1 values less than 0 were assigned to Cluster 0 and are depicted in red, whereas points with PC1 values greater than 0 were assigned to Cluster 1 and are shown in blue. This partitioning indicates that the majority of the variance, as captured by PC1, is responsible for the separation of the clusters.
+
+
+
+\begin{figure}
+\centering
+\includegraphics[width=0.83\linewidth]{5-PCA.pdf}
+\caption{A:Box plots showing the distribution of numeric features, including median, interquartile range, and outliers, to illustrate variability and skewness.B:Scatter plot of PCA-transformed data with points colored by K-Means cluster assignment, demonstrating clustering structure with the optimal number of clusters. }
+\label{fig:fig5}
+\end{figure}
+
+\subsection {Model Trainings}
+In this study, we aim to identify the effective parameters that govern the TS barrier and, consequently, the reactivity of IBXs. Figure~\ref{fig:fig2}B illustrates the distribution of transition state (TS) barriers, with energies spanning approximately 10–23 kcal·mol$^{-1}$. This energy range suggests that, under the specified experimental conditions, most IBX-mediated reactions are thermodynamically accessible at room temperature, thereby supporting the feasibility of these oxidation processes under mild conditions ~\cite{zhdankin2009hypervalent}.As expected based on the literature, methanol oxidation can be readily achieved at room temperature; however, in this case, the reaction rate differs and may serve as a valuable criterion for comparing reactivity ~\cite{su2005enhancing,jiang2017twist}.\par
+
+
+Tabl~\tabref{1} presents the results for the LR ML models applied to the two different datasets. The model using DFT descriptors showed strong performance with a  MAE of 0.95 kcal·mol$^{-1}$, a MSE of 2.17, and an R$^{2}$ value of 0.83. On the other hand, the model using Mordred descriptors had a MAE of 2.19 kcal·mol$^{-1}$, an MSE of 8.07, and an R$^{2}$ value of 0.37. These results highlight that incorporating detailed quantum mechanical features through DFT descriptors significantly improves the model’s ability to predict TS barrier energies compared to the simpler structural data provided by Mordred descriptors.\par
+
+Additional analysis of ensemble and nonlinear models, as shown in Tabl~\tabref{1}, reveals notable differences between the descriptor sets. The RF model with DFT descriptors has an MAE of 0.67 kcal·mol$^{-1}$ and an R$^{2}$ of 0.93, while the model using Mordred descriptors has an MAE of 2.26 kcal·mol$^{-1}$ and an R$^{2}$ of 0.30. Similarly, the GB model with DFT descriptors gives an MAE of 0.68 kcal·mol$^{-1}$ and an R$^{2}$ of 0.94, whereas the Mordred-based model shows an MAE of 2.43 kcal·mol$^{-1}$ and an R$^{2}$ of 0.18. Furthermore, the SVR and NN models using DFT descriptors achieve MAEs of 0.43 and 0.46 kcal·mol$^{-1}$ with R$^{2}$ values of 0.9740 and 0.9748, respectively, while the performance with Mordred descriptors is much lower (MAEs of 2.63 and 2.46 kcal·mol$^{-1}$; R$^{2}$ values of 0.08 and 0.28).\par
+
+
+\begin{table}[h]
+    \centering
+    \caption{Model Evaluation Results for DFT and Mordred Descriptors}
+    \label{tab:model_evaluation}
+    \begin{tabular}{lccc}
+        \hline
+        \multicolumn{4}{c}{\textbf{DFT Descriptor}} \\
+        \hline
+        Model & MAE & MSE & $R^2$ \\
+        \hline
+        Linear Regression & 0.9506 & 2.1652 & 0.8308 \\
+        Random Forest & 0.6777 & 0.8110 & 0.9366 \\
+        Gradient Boosting & 0.6833 & 0.7463 & 0.9417 \\
+        Support Vector Regression & 0.4397 & 0.3324 & 0.9740 \\
+        Neural Network & 0.4606 & 0.3220 & 0.9748 \\
+        \hline
+        \multicolumn{4}{c}{\textbf{Mordred Descriptor}} \\
+        \hline
+        Model & MAE & MSE & $R^2$ \\
+        \hline
+        Linear Regression & 2.1943 & 8.0748 & 0.3689 \\
+        Random Forest & 2.2662 & 8.9101 & 0.3036 \\
+        Gradient Boosting & 2.4328 & 10.4705 & 0.1816 \\
+        Support Vector Regression & 2.6352 & 11.6746 & 0.0875 \\
+        Neural Network & 2.4664 & 9.1073 & 0.2882 \\
+        \hline
+    \end{tabular}
+\end{table}
+
+
+The difference in performance between models using DFT descriptors and those using Mordred descriptors can be explained by the distinct types of information they capture. DFT descriptors contain detailed quantum mechanical properties, such as HOMO, LUMO, dipole moments, and specific bond lengths, which are directly related to the electronic structure and energetics of the transition state~\cite{suleimanov2015automated}. This rich information is important for accurately predicting TS barrier energies, as shown by the significantly lower MAEs and higher R² values in all models that use DFT descriptors.\par
+
+In contrast, Mordred descriptors, while advantageous due to their ease of generation from SMILES representations, are primarily based on structural and topological features. These descriptors may not fully capture the subtle electronic and energetic nuances that govern the TS barrier. As a result, models based on Mordred descriptors exhibit poorer predictive performance.\par
+
+The weak correlation observed in the LR and RF models using Mordred descriptors is likely due to a subset of these descriptors having a linear relationship with the TS barrier. LR captures this linear pattern effectively, while the RF’s ensemble method reduces noise, highlighting the relevant signal. As a result, although Mordred descriptors are simpler in structure compared to DFT descriptors, they still provide moderate predictive performance in these models~\cite{reis2018probabilistic}.
+
+
+According to Tabl~\tabref{1}, the default evaluation results reveal that SVR and the NN models substantially outperform the other methods. Tabl~\tabref{1}  shows that LR achieves an R$^{2}$ of 0.83 with a MAE of approximately 0.95, while ensemble methods like RF and GB achieve improved performance with R$^{2}$ values around 0.94 and lower error metrics. In contrast, both SVR and NN exhibit the highest predictive accuracies, with R$^{2}$ values of 0.974 and 0.975 respectively, accompanied by notably lower MAE and RMSE values. This clearly indicates that models capable of capturing non-linear relationships provide a superior fit for predicting the TS Barrier compared to simpler linear models or ensemble approaches.\par
+
+The superior performance of SVR and NN can be attributed to their inherent ability to model non-linear relationships. SVR uses kernel functions to project data into higher-dimensional spaces where a linear separation becomes feasible, thereby allowing it to capture subtleties in the data that a simple linear model might miss~\cite{roy2023support}. Similarly, NN learn hierarchical feature representations through multiple layers and non-linear activation functions, which makes them highly adaptable to complex patterns inherent in quantum-derived descriptors. In contrast, LR, with its strict linearity assumption, fails to represent these interactions adequately, while ensemble methods, although robust, may not achieve the same level of fine-tuned non-linear modeling as SVR and NN. These findings are consistent with studies in quantitative structure–property relationships, which often report that non-linear models outperform linear ones when the underlying relationships in the data are complex. \par
+
+
+
+The residuals plots for five machine learning models are presented in Figure~\ref{fig:fig6}. These plots depict scatter graphs where the residuals, representing the differences between the actual and predicted values, are plotted against the predicted values. The ideal scenario is represented by a horizontal red dashed line, indicating that the residuals are perfectly balanced around zero, meaning the model’s predictions align exactly with the true values.
+
+In all the plots, a general trend is observed where the majority of the residuals are clustered around the red line. This suggests that the models are effectively capturing the overall patterns in the data. However, variations in the residuals across different models highlight some differences in performance and indicate areas where improvements could be made.
+
+The residuals plot for the GB model shows a slight spread around zero, with a few outliers diverging both upwards and downwards. These outliers indicate that there may be regions where the GB model is underperforming or not fully capturing the data's intricacies.
+
+For the  LR model, the residuals exhibit more pronounced variation, with some large negative residuals. This suggests that the LR model might struggle to accurately model certain data relationships, potentially due to its linear assumptions not being suitable for capturing the more complex structures of the data.
+
+The residuals plot for the NN model shows a distribution similar to that of the GB model, with most points centered around zero and fewer outliers than the LR model. This suggests that the NN model is generally performing well, though some refinement may still be necessary.
+
+In the case of the RF model, the residuals show a good balance around the zero line. While there are a few points with larger residuals, the spread appears more uniform compared to the LR model, suggesting that the RF model captures the data patterns more effectively.
+
+The residuals for the SVR  model are predominantly centered around zero, with slight outliers at both ends. This suggests that the SVR model is performing well but could benefit from additional optimization to reduce these outliers further.
+
+These residuals plots serve as a crucial diagnostic tool in evaluating model performance. They offer insight into potential issues such as non-linearity, overfitting, or heteroscedasticity. In an ideal model, residuals would be symmetrically distributed around zero, showing no clear patterns. Although all models demonstrate relatively strong performance, further refinement may be necessary to minimize residuals in certain cases.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.83\linewidth]{6-Residuals.pdf}
+\caption{Residuals plots for five machine learning models: (A) Linear Regression (LR), (B) Random Forest (RF), (C) Gradient Boosting (GB), (D) Support Vector Regression (SVR), and (E) Neural Network (NN), illustrating the differences between actual and predicted values. The x-axis represents predicted values, while the y-axis shows residuals. The ideal scenario is denoted by the horizontal red dashed line at zero. The plots highlight variations in model performance, with outliers indicating potential areas for improvement. Additionally, hyperparameter tuning results are shown for (F) RF, (G) GB, (H) SVR, and (I) NN.}
+\label{fig:fig6}
+\end{figure}
+
+The histograms of residuals  with Kernel Density Estimation (KDE) curves for each of the  models are shown in Figure~\ref{fig:fig7} (left-hand). These histograms represent the difference between the observed and predicted values. The KDE curves overlaying each histogram provide a smooth estimate of the probability distribution of the residuals. From the histograms, the residuals for GB (Figure~\ref{fig:fig7}C), NN (Figure~\ref{fig:fig7}E), and SVR (Figure~\ref{fig:fig7}D) appear to be approximately symmetric and follow a roughly normal distribution, as indicated by their bell-shaped curves. This suggests that these models have an acceptable error distribution, with no obvious skewness or outliers, implying that the assumptions for LR (Figure~\ref{fig:fig7}A)might be reasonably met.
+
+However, the residuals of the LR model (Figure ~\ref{fig:fig7}A) demonstrate more significant skewness, with the distribution peaking at higher residuals, suggesting potential issues in the model fit. This deviation from normality may indicate that the LR model is not fully capturing the data patterns or that there are influential data points affecting its performance.
+
+In contrast, the residuals for RF (Figure ~\ref{fig:fig7}B) show a distribution with some asymmetry and a slight tail to the right. While it still appears approximately normal, the deviations from symmetry may suggest a small degree of model overfitting or residuals that are not perfectly random. Despite these minor deviations, RF generally performs well in capturing the data patterns compared to other models.
+
+Overall, the histogram plots provide essential insights into model performance by visualizing the residual distribution. For accurate predictions, residuals should ideally be symmetrically distributed around zero with no significant patterns. These histograms suggest that, in general, most models exhibit favorable residual distributions, but the LR model may require further investigation or adjustments.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.83\linewidth]{7-histograms.pdf}
+\caption{On the left-hand side (A–E), histograms of residuals with Kernel Density Estimation (KDE) curves are shown for five machine learning models: (A) Linear Regression (LR), (B) Random Forest (RF), (C) Gradient Boosting (GB), (D) Support Vector Regression (SVR), and (E) Neural Network (NN), illustrating the distribution of residuals. The x-axis represents residuals, while the y-axis shows frequency. Ideally, residuals should be symmetrically distributed around zero without significant patterns. On the right-hand side (F–J), QQ plots of residuals for the five default machine learning models (F) RF, (G) GB, (H) SVR, (I) NN, and (J) LR are shown. The x-axis represents theoretical quantiles, while the y-axis shows ordered values, assessing the normality of residual distributions.}
+\label{fig:fig7}
+\end{figure}
+
+
+Figure~\ref{fig:fig7} (right-hand) presents the QQ plots of residuals for five default machine learning models. A QQ plot is used to assess whether the residuals from a model follow a normal distribution, a key assumption in many statistical and machine learning techniques~\cite{pleil2016qq}. The residuals are plotted as blue dots against the theoretical quantiles of a standard normal distribution, represented by the red line. Ideally, the residuals should align with the red line if they are normally distributed. Deviations from this alignment can indicate issues such as heteroscedasticity, skewness, or model misspecification. The normality of residuals is particularly crucial for models like LR, where assumptions about residual distribution are central to statistical inference methods like hypothesis testing and confidence intervals.
+
+In the case of the GB model(~\ref{fig:fig7}H), the residuals are relatively close to the normal distribution, with minor deviations at both ends, suggesting some skewness or outliers. The LR model (~\ref{fig:fig7}F)exhibits a more pronounced deviation from the ideal line, especially at the extremes, pointing to potential outliers or non-linearity in the model. The NN(~\ref{fig:fig7}J)model shows similar slight deviations from the ideal line but with more consistency in the central part of the distribution, suggesting better alignment in the middle range. The RF model's residuals (~\ref{fig:fig7}G) closely follow the normal distribution, with only minor deviations at the tails, indicating well-behaved residuals. Similarly, the SVR model's residuals (~\ref{fig:fig7}I)align reasonably well with the red line, with slight deviations at both extremes, typical of non-linear models. In summary, while none of the models perfectly conform to the normal distribution, the degree of deviation varies across models, providing insights into their performance and assumptions and guiding further refinements or alternative model selection.
+
+~\subsection{hyperparameter} 
+
+Figure~\ref{fig:fig8} presents bar plots comparing the performance metrics across the default and tuned models. The plots illustrate that while tuning marginally improved performance for some models, the overall outcomes varied. The hyperparameter tuning function was implemented to optimize the predictive performance of several machine learning models, namely RF, GB, SVR, and NN. For models sensitive to feature scaling (SVR and NN), tuning was integrated within a pipeline that included a standard scaler, whereas ensemble methods (RF and GB) were tuned directly.
+
+
+\begin{figure}
+\centering
+\includegraphics[width=0.83\linewidth]{8-performance.pdf}
+\caption{Panel A presents a separate bar chart for R², highlighting the performance differences resulting from hyperparameter tuning. Panel B shows a grouped bar chart comparing default versus tuned values for MAE, MSE, RMSE, and MAPE across the evaluated models. }
+\label{fig:fig8}
+\end{figure}
+
+
+
+A predefined grid of hyperparameters was established for each model—for example, the number of estimators, maximum depth, and minimum samples for RF and GB, and the regularization parameters, kernel choices, and network architecture for SVR and NN. GridSearchCV was employed for RF and GB, while RandomizedSearchCV was used for SVR and NN to efficiently explore larger hyperparameter spaces under a 5-fold cross-validation scheme.
+
+Interestingly, the tuned hyperparameters did not consistently yield superior performance compared to the default settings. As evidenced by evaluation metrics such as R², MAE, MSE, RMSE, and MAPE, models like SVR and NN—which performed exceptionally well under default configurations—exhibited a decline in performance after tuning. This outcome may be attributed to several factors: the default parameter settings could already be near-optimal for the given dataset, the hyperparameter search space might have been too constrained or inadequately defined, and the cross-validation strategy may not have fully captured the underlying data variance. These findings underscore the inherent challenges in hyperparameter optimization and highlight the need for a carefully designed search strategy to achieve meaningful performance gains.
+
+Figure~\ref{fig:fig6}F-I shows the learning curve for a tuned model, where the training score improves with increasing data, yet the cross-validation score plateaus well below the ideal threshold. This Figure~\ref{fig:fig1} provides additional diagnostic insights through residual scatter plots, which complement the bar graph analysis by revealing changes in error distribution patterns post-tuning. The scatter plots indicate that the tuned models, particularly SVR and NN, exhibit increased variability in their residuals, suggesting a potential disruption in the bias–variance equilibrium. This indicates that, despite optimization efforts, the tuned models did not generalize as effectively as expected, emphasizing the limitations of the current tuning strategy.
+
+
+Based on the PCA results for the DFT descriptors, it was determined that the first principal component (PC1) accounts for approximately 92.48\% of the total variance in the data. This finding indicates that a single linear combination of the features—specifically, the “$\Theta$”—captures nearly all of the variability across the compounds. Consequently, most of the differences between the compounds can be summarized along a dominant axis (PC1), rendering it a highly effective dimension for representing the overall structure of the data.
+
+In contrast, the second principal component (PC2), associated with “$\vec{\mu}_x$,” explains only about 5.28\% of the variance. Although PC2 contributes additional detail, its impact is relatively minor compared to that of PC1. When a scatter plot of PC1 versus PC2 is examined (see Figure~\ref{fig:fig5}B), most of the separation among the data points is observed along the PC1 axis, with PC2 providing only slight differentiation. For instance, if compounds with higher TS Barrier values exhibit distinct combinations of electronic and geometric properties, such differences are primarily captured by PC1, whereas more subtle variations may be reflected in PC2. This outcome demonstrates that the dimensionality reduction is highly effective in condensing nearly all of the meaningful variability into a single principal component.
+
+In the PCA-transformed scatter plot, the x-axis is defined by PC1 and the y-axis by PC2. Two clusters were identified using K-Means clustering, and the data points were subsequently colored according to their cluster assignments. Specifically, points with PC1 values less than 0 were assigned to Cluster 0 and are depicted in red, whereas points with PC1 values greater than 0 were assigned to Cluster 1 and are shown in blue. This partitioning indicates that the majority of the variance, as captured by PC1, is responsible for the observed separation of the clusters.
+Based on the PCA results for your DFT descriptors, the first principal component (PC1) explains approximately 92.48\% of the total variance in the data. This indicates that a single linear combination of your features— "$\Theta$"—captures nearly all of the variability across the compounds. In practical terms, most of the differences between compounds in your dataset can be summarized along one dominant axis (PC1), making it a very effective dimension for representing the overall structure of your data.
+
+
+
+The feature importance analysis across different machine learning models reveals a consistent pattern, emphasizing the dominance of the "$\Theta$" as the most influential feature in predicting the target variable. As observed in the feature importance plots for GB, RF, NN, and SVR, the "$\Theta$" exhibits the highest importance score, significantly outweighing all other features. This outcome aligns with the previously discussed PCA results, where PC1, primarily influenced by "$\Theta$," accounted for over 92\% of the variance, further validating its critical role in the dataset. Figure~\ref{fig:figS2}S2 shows all of these charts, illustrating the comparative importance of features across different models.
+
+For most models, additional features such as "$\vec{\mu}_x$ " and "I-OH bond" contribute to a lesser extent, while descriptors like "HOMO ," "LUMO-O ," and "Dipole Moment Total " exhibit minimal influence. This trend is particularly evident in tree-based models (GB and RF), where the feature importance distribution is highly skewed toward "$\Theta$," reinforcing its predictive dominance.
+
+Interestingly, the feature importance distribution for LR deviates significantly from that of the other models. Unlike the ensemble-based and non-linear approaches, LR assigns the highest importance to "I=O" and "I-OH bond," with "$\Theta$" playing a negligible role. This discrepancy arises due to LR's inherent assumption of linear relationships between features and the target variable. Since "$\Theta$" likely interacts non-linearly with the outcome, LR fails to capture its true predictive power, instead relying on linearly correlated descriptors. This contrast highlights the limitations of linear models in complex datasets and underscores the advantages of non-linear and ensemble-based approaches in capturing intricate feature interactions.
+
+~\subsection{Partial Dependence Plots (PDPs)}
+
+Partial Dependence Plots (PDPs) are a widely used visualization technique in machine learning to interpret the marginal effect of a given feature on the predicted outcome. PDPs illustrate how the predicted response changes when a specific feature is varied while keeping all other features constant. This helps in understanding the relationship between individual predictors and the target variable, providing insights into feature importance and model behavior. Figure~\ref{fig:fig9} presents the PDPs for all models, highlighting the impact of key features on the target variable.
+
+Across all models, the "$\Theta$" exhibits a strong inverse relationship with the target variable, confirming its dominant role in the prediction process. This trend is especially prominent in GB, RF, and NN models, where an increase in "$\Theta$" corresponds to a significant decline in the predicted response, reinforcing its predictive strength. The PDP for "$\vec{\mu}_x$" displays a slight upward trend, suggesting a positive correlation with the target variable, although its overall impact is minor compared to "$\Theta$." Similarly, the "I-OH bond" exhibits a weak effect on the prediction, with only slight fluctuations in model response as the feature value varies.
+
+In contrast, the PDPs for LR show a distinctly linear trend, reflecting the model's inherent assumption of additive and independent effects. Features such as "I=O" and "I-OH bond" exhibit a more direct linear relationship with the target, unlike the non-linear dependencies observed in ensemble NN models. This difference aligns with the feature importance analysis, where LR emphasized these features over "$\Theta$."
+
+
+
+\begin{figure}
+\centering
+\includegraphics[width=0.83\linewidth]{10-PDB.pdf}
+\caption{Partial Dependence Plots (PDPs) illustrating the influence of the 3rd most important descriptors on model predictions. The y-axis represents Partial Dependence, while the x-axis shows different molecular descriptors for each model. For Linear Regression (LR), the selected descriptors are (A) I=O, (B) I-OH, and (C) LUMO. For Random Forest (RF), the descriptors are (D) $\Theta$, (E) $\vec{\mu}_x$, and (F) I-OH. For Gradient Boosting (GB), they are (G) $\Theta$, (H) $\vec{\mu}_x$, and (I) I-OH. For Support Vector Regression (SVR), they are (J) $\Theta$, (K) I-OH, and (L) I=O. Finally, for Neural Network (NN), they are (M) $\Theta$, (N) I-OH, and (O) I=O. The dihedral angle ($\Theta$) shows a strong inverse relationship with the target variable, particularly in the GB, RF, and NN models. In contrast, $\vec{\mu}_x$ and I-OH have minimal effects. Linear Regression (LR) exhibits a strictly linear trend, while ensemble models capture non-linear dependencies.}
+\label{fig:fig9}
+\end{figure}
+
+~\subsection{SHAP summary global graphs}
+
+The SHAP (SHapley Additive exPlanations) summary global graphs provide a direct measure of how much each feature contributes to a model’s predictions, typically based on criteria such as impurity reduction (for tree-based models) or coefficient magnitude (for linear models). They give an aggregated view of feature significance across all predictions but do not differentiate between the direction of influence or variations in importance across different data points.  These plots provide a comprehensive analysis of feature importance by quantifying the impact of each predictor on the model’s output. These plots illustrate the average magnitude of SHAP values for each feature, highlighting which variables contribute most to the model's predictions. Higher SHAP values indicate features that significantly influence the output, while lower values suggest minimal impact.
+
+Figure~\ref{fig:fig10} presents the SHAP summary global plots for all models, revealing consistent patterns in feature importance across different algorithms. The $\Theta$ emerges as the most influential feature in all models, reinforcing its dominant role in predicting the target variable. This is consistent with previous PCA and feature importance analyses, where $\Theta$ captured the highest variance in the dataset.
+
+Apart from $\Theta$, $\vec{\mu}_x$ and I-OH bond are among the next most impactful features, particularly in the GB, RF, and SVR models. These features demonstrate moderate influence, suggesting their relevance in capturing the target’s variability. In contrast, I=O bond, HOMO, and LUMO-O  contribute significantly less, aligning with their lower importance scores in prior analyses.
+
+
+
+~\subsection{SHAP summary plot }
+
+The SHAP summary plot in Figure ~\ref{fig:fig10} provides a comprehensive view of feature influence on individual predictions across models, with $\Theta$ emerging as the dominant factor. Notably, the analysis highlights key interactions, particularly in non-linear models, offering valuable insights for model interpretation and potential refinements in feature engineering.
+
+The NN model identifies $\Theta$ as the most impactful feature, displaying a broader range of SHAP values that reflect its ability to capture complex, non-linear relationships more effectively than simpler models like LR. $\vec{\mu}_x$ and I-O Bond also play significant roles, with their influence varying depending on other feature values, reinforcing the non-linear nature of NN. Furthermore, the model exhibits greater variability in predictions for higher feature values, particularly for I-O Bond, suggesting intricate interactions that linear models fail to capture.
+
+Similarly, in SVR, $\Theta$ remains the dominant feature, exhibiting a pronounced non-linear relationship with the model’s predictions. $\vec{\mu}_x$ and I-O Bond contribute moderately, with I-O Bond showing a concentrated effect in the mid-range, implying a conditional influence. Additionally, SVR highlights interactions between Dipole Moment Total (Debye) and I=O, where their combined variations significantly impact predictions. Across all models, $\Theta$ consistently stands out as the key driver of predictions, emphasizing its critical role in determining the target variable.
+
+The dominance of $\Theta$ is further confirmed in the GB model, where higher values consistently increase predictions, while $\vec{\mu}_x$ and I-O Bond also play significant but more stable roles. Feature interactions, particularly between $\vec{\mu}_x$ and $\Theta$, highlight conditional dependencies. Similarly, in the RF model, $\Theta$ remains the key predictor, with $\vec{\mu}_x$ and I-O Bond contributing steadily, while HOMO and I=O show more scattered, context-dependent effects. The model also captures interactions between I-O Bond and Dipole Moment Total, reinforcing predictive power. In contrast, LR presents a simpler, linear relationship, where $\Theta$ strongly influences predictions, but I-O Bond, $\vec{\mu}_x$, and I=O follow more predictable patterns. Interactions, such as between I-O Bond and LUMO-O, suggest complementary effects but lack the complexity seen in non-linear models. Overall, while $\Theta$ is the most influential feature across all models, non-linear approaches like GB, RF, NN, and SVR better capture intricate feature interactions, providing a more detailed understanding of the data.
+
+
+
+\begin{figure}
+\centering
+\includegraphics[width=0.83\linewidth]{11-Importance.pdf}
+\caption{SHAP summary global plots and SHAP summary plots for feature importance across different machine learning models. (A)–(E) display the SHAP summary global plots for (A) Linear Regression (LR), (B) Random Forest (RF), (C) Gradient Boosting (GB), (D) Support Vector Regression (SVR), and (E) Neural Network (NN). These plots illustrate the average impact of each feature on model predictions, confirming that $\Theta$ is the most influential descriptor across all models. Apart from $\Theta$, $\vec{\mu}_x$ and I-OH bond are consistently among the next most impactful features, particularly in GB, RF, and SVR models. (F)–(J) present the SHAP summary plots, which provide a detailed view of feature influence on individual predictions. These plots show the distribution of SHAP values, capturing variations in feature importance across different data points. (F) LR, (G) RF, (H) GB, (I) SVR, and (J) NN highlight that $\Theta$ dominates predictions in all models, with non-linear models (GB, RF, NN, SVR) capturing more complex feature interactions compared to LR. Notably, NN exhibits the broadest range of SHAP values, reflecting its ability to model intricate dependencies, while GB and RF emphasize structured feature relationships.}
+\label{fig:fig10}
+\end{figure}
+
+
+~\subsection{SHAP summary detailed}
+
+SHAP (SHapley Additive exPlanations) summary detailed plots provide a deeper insight into how each feature influences model predictions. Unlike global SHAP summary plots, which show overall importance rankings, detailed SHAP plots reveal the distribution of SHAP values per feature, indicating how variations in a feature's value impact the model's output.
+
+Each dot represents a single instance in the dataset, and its position along the x-axis indicates the SHAP value (i.e., the magnitude and direction of its contribution to the prediction). The color represents the feature value, with blue indicating low values and red representing high values. A wider spread in SHAP values for a given feature suggests greater variability in its impact across different instances.
+
+Across all models, $\Theta$ remains the most influential feature, reinforcing its dominant role in predictive performance. However, differences in how features contribute can be observed:
+
+GB, RF, and SVR : These models exhibit a consistent trend where $\Theta$ has the most significant impact, with $\vec{\mu}_x$ and I-OH bond as secondary contributors. The SHAP values of these features display moderate variance, indicating stable influence across samples.
+
+Neural Network: The pattern remains similar, with $\Theta$ leading, but a wider distribution of SHAP values suggests that feature importance may vary more dynamically in different instances.
+
+LR: Notably, LR exhibits a slightly different trend compared to other models. While $\Theta$ is still dominant, I-OH bond and I=O also demonstrate strong contributions. This deviation aligns with earlier findings that feature importance rankings in LR differ from tree-based models and SVR.
+
+These detailed SHAP plots provide complementary insights to the global SHAP summaries, confirming that $\Theta$ is consistently the most influential feature while also revealing variations in feature impact distributions across different models.
+
+
+
+
+\subsection{SHAP dependence plots}
+SHAP dependence plots illustrate how a specific feature influences model predictions while considering potential interactions with another feature. In these plots, the x-axis represents the feature value, with $\Theta$, $\vec{\mu}_x$, and I-OH bond separately illustrated in Figure~\ref{fig:fig11}, while the y-axis represents the corresponding SHAP value, indicating the feature's impact on the model's output. The color gradient represents the interaction effect of another feature, showing how these interactions influence the relationship between $\Theta$ and the model’s predictions. The rest of the SHAP dependence plots are provided in S3 of the supporting information.
+
+In Figure~\ref{fig:fig11}A , the x-axis represents $\Theta$s, while the y-axis denotes SHAP values, showing $\Theta$’s contribution to model predictions. The color gradient highlights interactions with secondary features, revealing how other variables influence this relationship. The SHAP dependence plots for  SVR, GB, and NN  all indicate a strong non-linear relationship between $\Theta$ and model output, though with varying interaction effects. In  SVR , predictions initially rise with increasing $\Theta$ before declining, suggesting an optimal range where $\Theta$ has the highest impact. The  I-OH bond  modulates this effect, reinforcing SVR’s ability to capture intricate feature relationships. Similarly, GB shows a sharp rise in SHAP values at lower $\Theta$ levels, peaking before declining, indicating diminishing effects at higher values. The I=O interaction influences this dependency, highlighting GB’s ability to model molecular interactions. In contrast, NN exhibits the most dynamic response, with pronounced fluctuations across the $\Theta$ range. The interaction with Dipole Moment Total (Debye) suggests NN captures complex higher-order dependencies, making it particularly effective in learning intricate patterns. While SVR and GB follow similar trends with varying interaction effects, NN demonstrates the highest flexibility, emphasizing the diverse ways these models interpret $\Theta$ and its interactions.
+
+
+The SHAP dependence plots for I-OH bond across different models highlight its contribution to predictions and interactions with other features. In SVR, the plot shows an upward trend, indicating that higher I-OH bond values lead to increased model output. The strong interaction with $\Theta$, seen in the color gradient, suggests a joint influence that SVR captures effectively. GB follows a similar trend but within a more constrained range, with its contribution modulated by relationships with other molecular descriptors. The NN model exhibits a non-linear trajectory, with fluctuations in SHAP values reflecting its ability to capture intricate feature interactions. This variation suggests that NN responds differently to changes in the I-OH bond depending on other factors, reinforcing its non-linear learning behavior. The RF model displays a segmented pattern, characteristic of tree-based models, where the I-OH bond exerts a strong positive influence in some regions but fluctuates in others. Its interaction with $\Theta$ remains significant, indicating that RF captures contributions in a piecewise manner rather than through a continuous function. Overall, these models confirm that I-OH bond is a key feature, with non-linear models (SVR, GB, NN, RF) capturing varied but strong interactions with $\Theta$, reflecting their different learning mechanisms. 
+
+The SHAP dependence plots for $\vec{\mu}_x$ across (NN), (SVR), (GB), and  (RF) consistently show a positive correlation with SHAP values, confirming its significant role in predictions. In NN, this relationship is smooth and well-defined, with $\Theta$ interacting as shown by the color gradient, highlighting NN’s ability to capture complex non-linear dependencies. SVR also follows a strong positive trend but with more dispersed SHAP values, indicating localized variations in how $\vec{\mu}_x$ affects predictions. GB displays a structured increase, effectively incorporating feature interactions, particularly with I-OH bond, as seen in the color gradient. RF follows a similar pattern but with a more scattered distribution, characteristic of its piecewise decision-tree-based learning. While all models emphasize $\vec{\mu}_x$, NN and SVR capture smoother interactions, while GB and RF exhibit more segmented relationships, reflecting differences in how these models interpret feature contributions. The SHAP dependence plots for other features are provided in the supporting information(~\ref{}S5, offering further insights into their contributions and interactions across different models.
+
+\begin{figure*}[hbt!]% Use H option to force placement here
+\centering
+\includegraphics[width=0.83\linewidth]{12-dependence1.pdf}
+\caption{SHAP dependence plots illustrating the influence of key molecular descriptors on model predictions. The x-axis represents feature values, while the y-axis denotes SHAP values, indicating the feature's impact on model output. The color gradient represents interaction effects with another feature. (A)–(E) depict the dependence of the dihedral angle ($\Theta$) on SHAP values across different models: (A) LR, (B) RF, (C) GB, (D) SVR, and (E) NN. These plots reveal a strong non-linear relationship between $\Theta$ and the model output, with varying interaction effects. (F)–(J) illustrate the SHAP dependence of the I-OH bond across different models: (F) LR, (G) RF, (H) GB, (I) SVR, and (J) NN. The I-OH bond exhibits a positive influence on predictions, with strong interactions with $\Theta$ across models, particularly in SVR and GB. (K)–(O) show the SHAP dependence plots for the dipole moment component ($\vec{\mu}_x$) across (K) LR, (L) RF, (M) GB, (N) SVR, and (O) NN. A strong positive correlation is observed across all models, with NN and SVR capturing smoother interactions, while GB and RF exhibit more segmented relationships. (P)–(T) represent SHAP dependence plots for additional molecular descriptors such as I=O and HOMO levels, revealing varying contributions and interaction effects across different models. The complete SHAP dependence plots for other features are available in the supporting information (S3, S5).}
+\label{fig:fig11}
+\end{figure*}
+
+
+
+~\subsection{Substituent effects}
+
+To have better understanding  of substituent effects we divided our data set into different categories based on different IBXs derivatives in diffrernt position. We made 10 different categories, including those that have just one functional group (category 1-4) and those have more than one functional groups (5-10); these categories can be seen in table S3.  
+
+ When a bulky functional group such as methyl  is introduced at the C3 position (category 1)  , the $\Theta$ angle increases (e.g.,14.28  for 3-Me-IBX) and the TS barrier is lowered (14.88 kcal/mol). This suggests that bulky  groups in the proper location can create a geometrical change that favors reactivity~\cite{moorthy2011twist}.
+ Conversely, placing the methyl group at the C5 position (category 3) results in a smaller $\Theta$ angle (2.78°) and a slightly higher TS barrier (20.78 kcal/mol), indicating that the substituent’s position is crucial. we also study the electronegativity  effects of these groups and realized that steric effects dominate the electronic nature. for instance for 3-NO2-IBX (category 1) the $\Theta$ angle (18.80°) and  TS barrier (12.27 kcal/mol) while Goddard mentioned that electronegative groups in o-position has negative effects. in this case 5-NO2-IBX which dose not have any steric effect with the $\Theta$ angle (2.57°) and has  TS barrier (22.14 kcal/mol) which is more than IBX its self as expected because of its electron withdrawing nature. the intersting thing about category 1 is big electron-widrawing group like COOH or SO3H has bigger $\Theta$ angle and lower TS energy for twisting in compare with Me-IBX. However, synthesizing such IBX might not practical experimentally but this study provide a good knowledge of power of sterich effect. Moreover, there are some other example of electron deficient functional group that are known as mIBX  or water-suloble IBX (6-COOH-IBX and 4-COOH-IBX) which shows low reactivity in alcohol oxidation\cite{kommreddy2008expedient, thottumkara2002synthesis}. Indeed,  5-SO3K-IBX has synthesized by Harschneck etall, and just used for azidation reaction\cite{harschneck2012practical}.
+ 
+However, the study also notes that electronic effects are not negligible. Electron-withdrawing groups  can have a negative influence on reactivity despite any favorable geometric changes. In other words, while the $\Theta$ angle and steric hindrance appear to be primary drivers, the electronic character of the substituents can modulate the overall reactivity profile, sometimes counteracting the benefits of an increased $\Theta$ angle. In cases where a substituent at C3 forces an increase in the $\Theta$ angle, the TS barrier is reduced, resulting in enhanced reactivity. Larger groups such as Me induce more significant changes compared to smaller substituents like F. 
+In category 2-4 the sterich effects gone almost for all functional groups regardless of their size and they dont have a clear pattern.  in category 2 and 3, which ismetha and para position in order with iodine, there are a slight difference between electronic nature of functional goups that electron withdrawing group like carboxylic acid, nitro and sulfonic acid has a bit more TS barrier which this low reactivity reported in the litreture\cite{kommreddy2008expedient, thottumkara2002synthesis}. 
+
+
+~\subsection{Buttressing effect in IBX}
+The buttressing effect refers to the phenomenon wherein a single bulky substituent induces a twisted conformation in a molecular system, while the addition of a second bulky group further increases steric strain, leading to an enhanced distortion or twisting. In IBX derivatives containing multiple substituents, such as 3-F,5-F-IBX, the substituent at the C3 position continues to increase the $\Theta$ angle (6.76°) while simultaneously reducing the transition state (TS) barrier to 18.58 kcal/mol.
+
+A similar trend is observed with methyl (Me) groups: 3-Me-IBX exhibits a greater $\Theta$ angle (14.28°) and a lower TS barrier (14.88 kcal/mol) compared to its 4-Me analogue (2.96° and 19.85 kcal/mol). The combined substitution of 3-Me and 4-Me in IBX results in an intermediate behavior (13.77° and 18.91 kcal/mol). More notably, the 3,4,5,6-tetramethyl-IBX derivative demonstrates a substantial $\Theta$ increase (23.64°) and a significant reduction in the TS barrier (10.52 kcal/mol), indicating that increased steric bulk effectively lowers the reaction barrier.
+
+This buttressing steric effect is particularly prominent in Category 5 structures, where one functional group is positioned at C3, and another is located at a different site, leading to pronounced steric distortions and reactivity enhancements.
+
+On the other hand, in categry 10 which is related to structures, that have one functional group on carbon 5 and one or more on the  other position except number 3, buttressing steric effect turned-off. in this category we want to know if there was no any functional group on the C3 but we  have more than 1 functional group is  buttressing steric effect remain or not? which it is only happen when one functional group is on the C3. Moreover, based on the results as the more  functional groups , the stronger buttressing steric effect is. 
+
+
+
+The electronic properties of substituents influence the reactivity of IBX derivatives. Electron-donating groups (EDGs), such as alkyl, hydroxyl, and amine groups, increase electron density on the aromatic ring, which can decrease the acidity of the carboxylate (position 1) by stabilizing the non-ionized form. Simultaneously, these substituents can reduce the electrophilicity of iodine (position 2), potentially altering its redox behavior, however this is boost first oxidation step which is called ligand exchange. In contrast, electron-withdrawing groups (EWGs), such as nitro, cyano, carboxyl, and sulfonyl groups, withdraw electron density, leading to an increase in carboxylate acidity while making the iodine center more electron-deficient and enhancing its oxidizing ability. The magnitude of these effects is dictated by both inductive (σ-bond) and resonance (π-bond) contributions, with halogens often exhibiting a balance between electron withdrawal through induction and weak donation via resonance. For biger alcohol oxdation and for those alcohol that has steric hinders actually first step becoms the the RDS of the reaction ~\cite{}.
+
+
+
+\section{Conclusion}
+
+In this study, we integrated advanced machine learning techniques with high-level computational chemistry to unravel the complex reactivity and substituent effects in hypervalent iodine compounds. We applied various machine learning models, including Linear Regression (LR), Random Forest (RF), Gradient Boosting (GB), Support Vector Regression (SVR), and Neural Networks (NN), to predict the reactivity of each structure using different descriptors. We also used DFT-derived descriptors alongside structural fingerprints and Mordred-derived features separately, aiming to improve prediction accuracy by combining these different feature sets.
+
+Based on our findings, NN and SVR models performed exceptionally well with DFT descriptors, achieving an $R^2$ of approximately 0.97, with NN being slightly superior. In contrast, Mordred-derived features did not yield satisfactory results ($R^2 < 0.3$). Our approach enabled the development of a robust categorization scheme that classifies IBX derivatives into distinct groups based on the number and positions of their substituents.
+
+Given the high accuracy of our models, we analyzed the most important descriptors to identify practical tools for designing new I(V) reagents and explaining the reactivity of existing ones. Our results demonstrate that single-functional group compounds exhibit predictable trends—where substituents at position 3 (ortho to iodine) yield lower transition state (TS) barriers compared to those at positions 4, 5, or 6, aligning with previous experimental findings. Notably, substituent effect analysis revealed that steric factors play a dominant role in modulating reactivity. When bulky groups are positioned at position 3, they significantly increase the dihedral angle ($\Theta$), which in turn lowers the TS barrier and drastically enhances reactivity.
+
+Moreover, our findings indicate:
+\begin{enumerate}
+    \item The size of the bulky group has a more profound influence on reactivity than its electronic nature, highlighting the critical impact of steric hindrance. The introduction of additional categories (9 and 10) further captured the nuanced interplay between substituents. Compounds with a substituent at position 3, in the absence of one at position 5—and vice versa—display distinct reactivity profiles.
+    \item A \textbf{buttressing effect} was observed, where a single bulky substituent induces a twisted conformation in the molecular system, while the addition of a second bulky group further increases steric strain, leading to enhanced distortion or twisting.
+    \item The combination of bulky functional groups at positions 3 and 4 resulted in a stronger buttressing effect, while adding more functional groups at other positions further amplified reactivity.
+    \item The combination of a bulky functional group at position 3 and an electron-donating group at position 5 resulted in a buttressing effect and a positive electronic influence on reactivity.
+    \item SHAP analyses corroborated these insights by identifying the dihedral angle and dipole moments as key determinants of the TS barrier. 
+   \item These models produced reliable results even with a limited number of descriptors. However, combining DFT and Mordred descriptors did not yield better performance. Fingerprint-based models were useful primarily for predicting reactivity trends rather than providing quantitative insights, as these descriptors are not numerical.
+   \item Hyperparameter tuning only improved the GB models, while the default NN and SVR models still outperformed the tuned versions. 
+   \end{enumerate}
+
+Collectively, our study provides a comprehensive framework for understanding the interplay of steric and electronic effects in hypervalent iodine chemistry and offers a promising pathway for the rational design of novel reagents that will inform future experimental use and enable insights in our laboratory.
+
+
+
+\bibliographystyle{elsarticle-num} 
+\bibliography{example}
+
+
+
+
+ 
+%% else use the following coding to input the bibitems directly in the
+%% TeX file.
+
+%%\begin{thebibliography}{00}
+
+%% \bibitem[Author(year)]{label}
+%% For example:
+
+%% \bibitem[Aladro et al.(2015)]{Aladro15} Aladro, R., Martín, S., Riquelme, D., et al. 2015, \aas, 579, A101
+
+
+%%\end{thebibliography}
+
+\end{document}
+
+\endinput
+%%
+%% End of file `elsarticle-template-harv.tex'.
