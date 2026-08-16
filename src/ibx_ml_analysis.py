@@ -629,15 +629,20 @@ def run_shap_analysis(best_model_name, best_model, X_train, top_features):
 
 # Display labels for descriptor columns, used in the SHAP-ranked PDP grid.
 FEATURE_DISPLAY_LABELS = {
-    "D16 value": "Θ (dihedral angle)",
-    "Dipole Moment X (Debye)": "μx (dipole moment, X)",
-    "Dipole Moment Total (Debye)": "μ (dipole moment, total)",
-    "I-OH bond": "I–OH bond length",
-    "I=O": "I=O bond length",
-    "I-O Bond": "I–O bond length",
+    "D16 value": "Θ (°)",
+    "Dipole Moment X (Debye)": "μₓ (D)",
+    "Dipole Moment Total (Debye)": "μ (D)",
+    "I-OH bond": "I–OH (Å)",
+    "I=O": "I=O (Å)",
+    "I-O Bond": "I–O (Å)",
     "HOMO-O (Hartree)": "HOMO",
     "LUMO-O (Hartree)": "LUMO",
 }
+
+# Common y-axis range (kcal/mol) applied across the SHAP-ranked PDP grid, so
+# the magnitude of descriptor effects is visually comparable across panels
+# rather than exaggerated by per-panel auto-scaling.
+PDP_GRID_Y_RANGE = (12, 21.5)
 
 
 def compute_shap_top_features(fitted_model, X_train, top_n=3):
@@ -677,7 +682,7 @@ def compute_shap_top_features(fitted_model, X_train, top_n=3):
     return mean_abs_shap.head(top_n).index.tolist(), mean_abs_shap
 
 
-def plot_pdp_grid(model_entries, X_train, png_path, pdf_path, feature_labels=None):
+def plot_pdp_grid(model_entries, X_train, png_path, pdf_path, feature_labels=None, y_range=None):
     """
     Reusable routine: plot a grid of Partial Dependence panels, one row per
     model and one column per selected feature for that model, with
@@ -693,6 +698,10 @@ def plot_pdp_grid(model_entries, X_train, png_path, pdf_path, feature_labels=Non
         Training features used to compute the PDP curves.
     feature_labels : dict, optional
         Maps internal column names to publication-style display labels.
+    y_range : tuple, optional
+        (min, max) applied to every panel's y-axis, so descriptor effect
+        sizes are visually comparable across panels instead of exaggerated
+        by independent per-panel auto-scaling.
     """
     feature_labels = feature_labels or {}
     n_rows = len(model_entries)
@@ -719,13 +728,22 @@ def plot_pdp_grid(model_entries, X_train, png_path, pdf_path, feature_labels=Non
             # trees omits the ensemble's initial estimator, which shifts its
             # curves by a constant offset relative to the actual predicted
             # scale -- "brute" avoids that and keeps all panels comparable.
-            PartialDependenceDisplay.from_estimator(
+            display = PartialDependenceDisplay.from_estimator(
                 entry["model"], X_train, features=[feature], ax=ax, kind="average", method="brute",
             )
+            # PartialDependenceDisplay subdivides the passed `ax` and draws
+            # onto its own internal child axes (display.axes_), leaving the
+            # original `ax` as an invisible bounding container -- x/y-label
+            # and y-limit calls must target that real plotting axes, not the
+            # container, or they are silently ignored.
+            plot_ax = display.axes_.ravel()[0]
+
             label = feature_labels.get(feature, feature)
             ax.set_title(f"{letters[letter_idx]}  {entry['name']} — {label}", fontsize=10, loc="left")
-            ax.set_xlabel(label)
-            ax.set_ylabel("Partial dependence\n(TS barrier, kcal/mol)" if col == 0 else "")
+            plot_ax.set_xlabel(label)
+            plot_ax.set_ylabel("Predicted ΔG‡ (kcal mol⁻¹)" if col == 0 else "")
+            if y_range is not None:
+                plot_ax.set_ylim(y_range)
             letter_idx += 1
 
     plt.tight_layout()
@@ -781,7 +799,10 @@ def generate_shap_ranked_pdp_grid(models_by_name, X_train, top_n=3):
 
     png_path = os.path.join(FIGURES_DIR, "pdp_shap_top3_models.png")
     pdf_path = os.path.join(FIGURES_DIR, "pdp_shap_top3_models.pdf")
-    plot_pdp_grid(model_entries, X_train, png_path, pdf_path, feature_labels=FEATURE_DISPLAY_LABELS)
+    plot_pdp_grid(
+        model_entries, X_train, png_path, pdf_path,
+        feature_labels=FEATURE_DISPLAY_LABELS, y_range=PDP_GRID_Y_RANGE,
+    )
     print(f"\nSaved SHAP-ranked PDP grid: {png_path}\n                            {pdf_path}")
 
     return ranking_summary, png_path, pdf_path
