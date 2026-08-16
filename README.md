@@ -133,6 +133,7 @@ The manuscript's Table 1 reports **default**-hyperparameter metrics; it does not
 - **Inverse relationship between Θ and the TS barrier**: confirmed — `D16 value` has a Pearson correlation of **-0.80** with `TS_Barrier` (`results/tables/correlation_matrix.csv`), the strongest of any descriptor.
 - **PCA**: PC1 explains **92.48%** of variance and PC2 explains **5.28%** (`results/tables/pca_explained_variance.csv`) — an exact match to the manuscript's reported values.
 - **SVR/NN outperforming linear/ensemble models**: confirmed at default hyperparameters (R² 0.974–0.975 vs. 0.83–0.94), matching the manuscript. Not preserved after this run's tuning (see above).
+- **Model-specific SHAP-ranked PDPs**: `results/figures/pdp_shap_top3_models.png` (and `.pdf`) shows each model's own top-3 descriptors by mean |SHAP value| — Θ dominates every model; the runner-up descriptors are μx (dipole moment X) and I–OH bond length for RF/GB/SVR/NN, and I–OH bond/I=O bond length for LR. Random Forest, Gradient Boosting and Linear Regression use their default fit (scale-invariant); SVR and the Neural Network use their tuned `StandardScaler` pipeline, since these algorithms are scale-sensitive and SHAP on their unscaled fit distorts attribution towards large-magnitude descriptors.
 
 ## Citation
 

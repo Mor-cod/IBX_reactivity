@@ -389,7 +389,12 @@ def plot_residual_diagnostics(residuals, model_name, tag):
 
 
 def train_and_evaluate_default_models(X_train, X_test, y_train, y_test):
-    """Train each model with its default (untuned) hyperparameters."""
+    """Train each model with its default (untuned) hyperparameters.
+
+    Returns the results table and the dict of fitted models (so callers can
+    reuse the already-trained estimators for interpretability analyses
+    instead of refitting).
+    """
     default_models = get_default_models()
     default_results = []
 
@@ -416,7 +421,7 @@ def train_and_evaluate_default_models(X_train, X_test, y_train, y_test):
     default_results_df = pd.DataFrame(default_results)
     print("\nDefault Model Evaluation Results:\n", default_results_df)
     default_results_df.to_csv(os.path.join(TABLES_DIR, "default_model_evaluation_results.csv"), index=False)
-    return default_results_df
+    return default_results_df, default_models
 
 
 # -----------------------------------------------------------------------
@@ -622,6 +627,160 @@ def run_shap_analysis(best_model_name, best_model, X_train, top_features):
         logger.error("Error during SHAP analysis for %s: %s", best_model_name, exc, exc_info=True)
 
 
+# Display labels for descriptor columns, used in the SHAP-ranked PDP grid.
+FEATURE_DISPLAY_LABELS = {
+    "D16 value": "Θ (dihedral angle)",
+    "Dipole Moment X (Debye)": "μx (dipole moment, X)",
+    "Dipole Moment Total (Debye)": "μ (dipole moment, total)",
+    "I-OH bond": "I–OH bond length",
+    "I=O": "I=O bond length",
+    "I-O Bond": "I–O bond length",
+    "HOMO-O (Hartree)": "HOMO",
+    "LUMO-O (Hartree)": "LUMO",
+}
+
+
+def compute_shap_top_features(fitted_model, X_train, top_n=3):
+    """
+    Compute SHAP values for a fitted model and return its top-N descriptors
+    ranked by mean absolute SHAP value, plus the full ranking.
+
+    Works with either a plain estimator or a scaling Pipeline
+    (StandardScaler + regressor, as used elsewhere in this script for the
+    tuned SVR/Neural Network models), so it is reusable for any model in
+    the pipeline without modification.
+    """
+    if hasattr(fitted_model, "named_steps"):
+        regressor = fitted_model.named_steps["regressor"]
+        scaler = fitted_model.named_steps.get("scaler")
+        X_input = scaler.transform(X_train) if scaler is not None else X_train.values
+        X_input = pd.DataFrame(X_input, columns=X_train.columns, index=X_train.index)
+    else:
+        regressor = fitted_model
+        X_input = X_train
+
+    try:
+        # shap.Explainer auto-detects fast, exact explainers (Linear/Tree) for
+        # model types it recognises directly.
+        explainer = shap.Explainer(regressor, X_input)
+    except TypeError:
+        # Model types SHAP doesn't special-case (e.g. SVR, MLPRegressor) must
+        # be passed as a callable predict function, which selects a
+        # model-agnostic (Permutation) explainer instead.
+        explainer = shap.Explainer(regressor.predict, X_input)
+    shap_values = explainer(X_input)
+
+    mean_abs_shap = pd.Series(
+        np.abs(shap_values.values).mean(axis=0), index=X_train.columns
+    ).sort_values(ascending=False)
+
+    return mean_abs_shap.head(top_n).index.tolist(), mean_abs_shap
+
+
+def plot_pdp_grid(model_entries, X_train, png_path, pdf_path, feature_labels=None):
+    """
+    Reusable routine: plot a grid of Partial Dependence panels, one row per
+    model and one column per selected feature for that model, with
+    lettered panel labels (A, B, C, ...).
+
+    Parameters
+    ----------
+    model_entries : list of dict
+        Each entry needs 'name' (row label), 'model' (fitted estimator or
+        scaling Pipeline), and 'features' (ordered list of column names to
+        plot for that model).
+    X_train : pd.DataFrame
+        Training features used to compute the PDP curves.
+    feature_labels : dict, optional
+        Maps internal column names to publication-style display labels.
+    """
+    feature_labels = feature_labels or {}
+    n_rows = len(model_entries)
+    n_cols = max(len(entry["features"]) for entry in model_entries)
+
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 4 * n_rows))
+    axes = np.atleast_2d(axes)
+
+    letters = [chr(ord("A") + i) for i in range(n_rows * n_cols)]
+    letter_idx = 0
+
+    for row, entry in enumerate(model_entries):
+        for col in range(n_cols):
+            ax = axes[row, col]
+            if col >= len(entry["features"]):
+                ax.axis("off")
+                letter_idx += 1
+                continue
+
+            feature = entry["features"][col]
+            PartialDependenceDisplay.from_estimator(
+                entry["model"], X_train, features=[feature], ax=ax, kind="average",
+            )
+            label = feature_labels.get(feature, feature)
+            ax.set_title(f"{letters[letter_idx]}  {entry['name']} — {label}", fontsize=10, loc="left")
+            ax.set_xlabel(label)
+            ax.set_ylabel("Partial dependence\n(TS barrier, kcal/mol)" if col == 0 else "")
+            letter_idx += 1
+
+    plt.tight_layout()
+    fig.savefig(png_path, dpi=300)
+    fig.savefig(pdf_path)
+    plt.close(fig)
+
+
+def select_shap_pdp_models(fitted_default_models, tuned_estimators):
+    """
+    Choose which fitted estimator represents each model for SHAP/PDP
+    analysis. Linear Regression, Random Forest and Gradient Boosting are
+    scale-invariant, so their plain default-hyperparameter fit is used.
+    SVR and the Neural Network are scale-sensitive: computing SHAP on their
+    unscaled default fit distorts attribution towards large-magnitude
+    features (e.g. total dipole moment) and away from small-range ones
+    (e.g. I-OH bond length), so their tuned StandardScaler pipeline is used
+    instead, matching how they are actually deployed elsewhere in this
+    script (see tune_models()).
+    """
+    return {
+        "Linear Regression": fitted_default_models["Linear Regression"],
+        "Random Forest": fitted_default_models["Random Forest"],
+        "Gradient Boosting": fitted_default_models["Gradient Boosting"],
+        "Support Vector Regression": tuned_estimators["Support Vector Regression"],
+        "Neural Network": tuned_estimators["Neural Network"],
+    }
+
+
+def generate_shap_ranked_pdp_grid(models_by_name, X_train, top_n=3):
+    """
+    For each of the five models, rank descriptors by mean |SHAP value| and
+    plot the top-N as a composite Partial Dependence grid (one row per
+    model, panels lettered A-O). Saves results/figures/pdp_shap_top3_models
+    as both PNG and PDF. Returns {model_name: (top_features, full_ranking)}
+    for verification/logging.
+    """
+    model_order = [
+        "Linear Regression", "Random Forest", "Gradient Boosting",
+        "Support Vector Regression", "Neural Network",
+    ]
+    ranking_summary = {}
+    model_entries = []
+
+    print("\n--- Computing SHAP-ranked descriptors for all five models ---\n")
+    for model_name in model_order:
+        model = models_by_name[model_name]
+        print(f"Computing SHAP feature ranking for {model_name}...")
+        top_features, full_ranking = compute_shap_top_features(model, X_train, top_n=top_n)
+        ranking_summary[model_name] = (top_features, full_ranking)
+        model_entries.append({"name": model_name, "model": model, "features": top_features})
+        logger.info("SHAP top-%d for %s: %s", top_n, model_name, top_features)
+
+    png_path = os.path.join(FIGURES_DIR, "pdp_shap_top3_models.png")
+    pdf_path = os.path.join(FIGURES_DIR, "pdp_shap_top3_models.pdf")
+    plot_pdp_grid(model_entries, X_train, png_path, pdf_path, feature_labels=FEATURE_DISPLAY_LABELS)
+    print(f"\nSaved SHAP-ranked PDP grid: {png_path}\n                            {pdf_path}")
+
+    return ranking_summary, png_path, pdf_path
+
+
 def persist_best_model(best_model_name, best_model):
     try:
         pd.Series(best_model.get_params()).to_csv(
@@ -695,18 +854,22 @@ def main():
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_STATE)
     print("Train-test split completed.")
 
-    default_results_df = train_and_evaluate_default_models(X_train, X_test, y_train, y_test)
+    default_results_df, fitted_default_models = train_and_evaluate_default_models(X_train, X_test, y_train, y_test)
     tuned_results_df, best_estimators = tune_models(X_train, X_test, y_train, y_test)
     save_comparison(default_results_df, tuned_results_df)
 
-    default_models = get_default_models()
-    best_model_name, best_model = select_best_model(default_results_df, tuned_results_df, default_models, best_estimators)
+    best_model_name, best_model = select_best_model(
+        default_results_df, tuned_results_df, fitted_default_models, best_estimators
+    )
 
     plot_feature_importances(best_estimators, X)
     top_features = plot_partial_dependence(best_model_name, best_model, best_estimators, X, X_train)
     run_shap_analysis(best_model_name, best_model, X_train, top_features)
     persist_best_model(best_model_name, best_model)
     predict_new_structure(best_model_name, best_model, X)
+
+    shap_pdp_models = select_shap_pdp_models(fitted_default_models, best_estimators)
+    generate_shap_ranked_pdp_grid(shap_pdp_models, X_train, top_n=3)
 
     print("\nWorkflow complete. See results/figures and results/tables for outputs.\n")
 
