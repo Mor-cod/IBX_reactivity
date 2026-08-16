@@ -713,8 +713,14 @@ def plot_pdp_grid(model_entries, X_train, png_path, pdf_path, feature_labels=Non
                 continue
 
             feature = entry["features"][col]
+            # method="brute" computes PDP curves by actually averaging model
+            # predictions over the grid (true response scale for every model
+            # type). The default "recursion" method for gradient-boosted
+            # trees omits the ensemble's initial estimator, which shifts its
+            # curves by a constant offset relative to the actual predicted
+            # scale -- "brute" avoids that and keeps all panels comparable.
             PartialDependenceDisplay.from_estimator(
-                entry["model"], X_train, features=[feature], ax=ax, kind="average",
+                entry["model"], X_train, features=[feature], ax=ax, kind="average", method="brute",
             )
             label = feature_labels.get(feature, feature)
             ax.set_title(f"{letters[letter_idx]}  {entry['name']} — {label}", fontsize=10, loc="left")
